@@ -1,5 +1,4 @@
-# DockSec
-AI-Powered Docker Security Analyzer
+# DockSec - AI-Powered Docker Security Analyzer
 
 ## Overview
 DockSec is an open-source AI-powered tool designed to analyze Dockerfiles for security vulnerabilities, misconfigurations, and inefficiencies. It provides automated recommendations to enhance container security, reduce the attack surface, and improve compliance with industry best practices.

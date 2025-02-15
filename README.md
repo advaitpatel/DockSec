@@ -9,9 +9,21 @@ DockSec is an open-source AI-powered tool designed to analyze Dockerfiles for se
 - Security Vulnerability Detection: Scans Dockerfiles for known security issues, CVEs, and misconfigurations.
 - Best Practice Recommendations: Provides actionable insights to enhance security, minimize image size, and improve efficiency.
 - Integration with Development Tools:
-VS Code extension for inline security suggestions.
-CI/CD pipeline support (GitHub Actions, GitLab CI, Jenkins).
+-- VS Code extension for inline security suggestions.
+-- CI/CD pipeline support (GitHub Actions, GitLab CI, Jenkins).
 - Compliance Checks: Aligns with CIS Benchmarks, Docker Security Best Practices, and OWASP guidelines.
+
+## Installation
+TBD
+
+## Usage
+TBD
+
+## CI/CD Integration
+TBD
+
+## Roadmap
+TBD
 
 ## Contributing
 We welcome contributions! To get started:

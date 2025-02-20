@@ -33,7 +33,7 @@ pip install -r requirements.txt # use pip3 for mac
 Test the Docker File by passing path 
 
 ```
-python .\main.py "D:\Freelance Work\sahal\DockSec\testfiles\1\Dockerfile"
+python .\main.py "path to your docker file"
 ```
 ## CI/CD Integration
 TBD

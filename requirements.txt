@@ -1,3 +1,7 @@
 langchain
 langchain-openai
 python-dotenv
+
+tqdm
+colorama
+rich

@@ -16,8 +16,25 @@ DockSec is an open-source AI-powered tool designed to analyze Dockerfiles for se
 TBD
 
 ## Usage
-TBD
+To Run the application the following steps need to be followed.
 
+its preferred to create a virtual environment for it 
+
+```
+python -m venv env # for mac use python3
+```
+
+Install all the dependencies with 
+
+```
+pip install -r requirements.txt # use pip3 for mac
+```
+
+Test the Docker File by passing path 
+
+```
+python .\main.py "D:\Freelance Work\sahal\DockSec\testfiles\1\Dockerfile"
+```
 ## CI/CD Integration
 TBD
 

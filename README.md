@@ -35,6 +35,15 @@ Test the Docker File by passing path
 ```
 python .\main.py "path to your docker file"
 ```
+
+To check the Dockerfile as well as images for the vulnerabilities
+
+you need to setup Trivy and hadolint in your system for that you can use `python .\setup_external_tools.py` to setup but its recommended to use the documentation for [Trivy](https://trivy.dev/v0.18.3/installation/) and [hadolint](https://github.com/hadolint/hadolint?tab=readme-ov-file#install)
+
+```
+python docker_scanner.py <dockerfile_path> <image_name> [severity] # python docker_scanner.py ./Dockerfile myapp:latest CRITICAL,HIGH
+```
+
 ## CI/CD Integration
 TBD
 

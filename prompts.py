@@ -24,3 +24,16 @@ docker_agent_prompt = PromptTemplate(
     input_variables=["filecontent"],
     template=docker_agent_template
 )
+
+docker_report_template = """
+    you are Docker Security Expert. You will be given Results of the tools analysis. your goal is to generate a report based on the results.
+
+    Results:
+    {results}
+
+"""
+
+docker_report_prompt = PromptTemplate(
+    input_variables=["results"],
+    template=docker_report_template
+)

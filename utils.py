@@ -46,11 +46,13 @@ class AnalsesResponse(BaseModel ):
     SecurityRisks: List[str] = Field(description= "security risks associated with Dockerfile")
     ExposedCredentials: List[str] = Field(description="List of exposed credentials in the Dockerfile")
 
+class ScoreResponse(BaseModel):
+    score: float = Field(description="Security score for the Dockerfile")
 
 def get_llm():
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
-    structure_llm = llm.with_structured_output(AnalsesResponse, method = "json_mode")
-    return structure_llm
+    # structure_llm = llm.with_structured_output(AnalsesResponse, method = "json_mode")
+    return llm
 
 
 

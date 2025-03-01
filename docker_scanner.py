@@ -9,7 +9,8 @@ from fpdf import FPDF
 import sys
 import re
 from config import RESULTS_DIR
-
+from prompts import docker_score_prompt
+from utils import ScoreResponse, get_llm, print_section
 
 class DockerSecurityScanner:
     def __init__(self, dockerfile_path: str, image_name: str, results_dir: str = RESULTS_DIR):
@@ -29,6 +30,8 @@ class DockerSecurityScanner:
         self.image_name = image_name
         self.required_tools = ['docker', 'hadolint', 'trivy']
         self.RESULTS_DIR = results_dir
+        llm = get_llm()
+        self.score_chain = docker_score_prompt | llm.with_structured_output(ScoreResponse, method="json_mode")
         
         # Ensure results directory exists
         os.makedirs(self.RESULTS_DIR, exist_ok=True)
@@ -589,6 +592,22 @@ class DockerSecurityScanner:
             report_paths['pdf'] = pdf_path
         
         return report_paths
+    def get_security_score(self, results: Dict) -> float:
+        """
+        Calculate the security score based on scan results.
+        
+        Args:
+            results: The scan results to calculate the score from
+            
+        Returns:
+            The calculated security score
+        """
+
+        score = self.score_chain.invoke({"results": results})
+        print(f"Security Score: {score.score}")
+        return score.score
+
+
 
 def main():
     """Main function to run the security scanner."""
@@ -609,8 +628,15 @@ def main():
         # Run full scan
         results = scanner.run_full_scan(severity)
         
+        # Calculate security score
+        score = scanner.get_security_score(results)
+
+        print_section("Security Score", [f"Score: {score}"], "yellow")
+
         # Save results to file
         scanner.generate_all_reports(results)
+
+
         
         # Exit with appropriate code
         if results['dockerfile_scan']['success'] and results['image_scan']['success']:

@@ -4,15 +4,21 @@ from utils import (
     load_docker_file,
     get_llm,
     analyze_security,
+    AnalsesResponse,
+    ScoreResponse
 )
-from prompts import docker_agent_prompt
+from prompts import docker_agent_prompt, docker_score_prompt
 import os
 from langchain_core.output_parsers import StrOutputParser
 from pathlib import Path
 logger = get_custom_logger(name=__name__)
 
 llm = get_llm()
-analyser_chain = docker_agent_prompt | llm 
+Report_llm = llm.with_structured_output(AnalsesResponse, method = "json_mode")
+analyser_chain = docker_agent_prompt | Report_llm
+
+
+
 
 
 

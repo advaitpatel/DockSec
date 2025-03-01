@@ -1,7 +1,10 @@
 langchain
 langchain-openai
 python-dotenv
+pandas
 
 tqdm
 colorama
 rich
+
+fpdf

@@ -2,7 +2,7 @@
     "scan_info": {
         "image": "python:3.9-slim",
         "dockerfile": ".\\testfiles\\2\\Dockerfile",
-        "scan_time": "2025-03-01 16:13:33"
+        "scan_time": "2025-03-01 16:22:02"
     },
     "vulnerabilities": [
         {

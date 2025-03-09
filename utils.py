@@ -45,12 +45,15 @@ class AnalsesResponse(BaseModel ):
     best_practices: List[str] = Field(description="Best practices to follow to mitigate these vulnerabilities")
     SecurityRisks: List[str] = Field(description= "security risks associated with Dockerfile")
     ExposedCredentials: List[str] = Field(description="List of exposed credentials in the Dockerfile")
+    remediation: List[str] = Field(description="List of remediation steps to fix the vulnerabilities")
 
+class ScoreResponse(BaseModel):
+    score: float = Field(description="Security score for the Dockerfile")
 
 def get_llm():
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
-    structure_llm = llm.with_structured_output(AnalsesResponse, method = "json_mode")
-    return structure_llm
+    # structure_llm = llm.with_structured_output(AnalsesResponse, method = "json_mode")
+    return llm
 
 
 
@@ -77,16 +80,17 @@ def analyze_security(response):
     best_practices = response.best_practices
     security_risks = response.SecurityRisks
     exposed_credentials = response.ExposedCredentials
+    remediation = response.remediation
 
     # Simulating scanning with tqdm
     with tqdm(total=100, bar_format="{l_bar}{bar} {n_fmt}/{total_fmt} {elapsed}s[/]") as pbar:
         console.print("\n[cyan]🔍 Scanning Dockerfile...[/]")
         time.sleep(1)
-        pbar.update(30)
+        pbar.update(20)
 
         console.print("[cyan]🛠️  Analyzing vulnerabilities...[/]")
         time.sleep(1)
-        pbar.update(30)
+        pbar.update(20)
 
         console.print("[cyan]🔐 Checking security risks...[/]")
         time.sleep(1)
@@ -96,12 +100,17 @@ def analyze_security(response):
         time.sleep(1)
         pbar.update(20)
 
+        console.print("[cyan]🔑 Checking for exposed credentials...[/]")
+        time.sleep(1)
+        pbar.update(20)
+
     # Print Sections
     print_section("Vulnerabilities", vulnerabilities, "red")
     print_section("Best Practices", best_practices, "blue")
     print_section("Security Risks", security_risks, "yellow")
     print_section("Exposed Credentials", exposed_credentials, "magenta")
-
+    print_section("Remediation Steps", remediation, "green")
+    
 
 
 

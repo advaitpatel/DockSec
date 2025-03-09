@@ -173,3 +173,6 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 testfiles/1/Dockerfile
+results/
+
+

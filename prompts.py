@@ -12,7 +12,8 @@ docker_agent_template = """
         "vulnerabilities": ["vulnerability1", "vulnerability2", "vulnerability3"],
         "best_practices": ["best practice1", "best practice2", "best practice3"],
         "SecurityRisks": ["security risk1", "security risk2", "security risk3"],
-        "ExposedCredentials": ["credential1", "credential2", "credential3"]
+        "ExposedCredentials": ["credential1", "credential2", "credential3"],
+        "remediation": ["remediation1", "remediation2", "remediation3"]
     }}
 
 

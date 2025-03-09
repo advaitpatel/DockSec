@@ -8,41 +8,87 @@ DockSec is an open-source AI-powered tool designed to analyze Dockerfiles for se
 - Security Vulnerability Detection: Scans Dockerfiles for known security issues, CVEs, and misconfigurations.
 - Best Practice Recommendations: Provides actionable insights to enhance security, minimize image size, and improve efficiency.
 - Integration with Development Tools:
--- VS Code extension for inline security suggestions.
--- CI/CD pipeline support (GitHub Actions, GitLab CI, Jenkins).
+  - VS Code extension for inline security suggestions.
+  - CI/CD pipeline support (GitHub Actions, GitLab CI, Jenkins).
 - Compliance Checks: Aligns with CIS Benchmarks, Docker Security Best Practices, and OWASP guidelines.
 
 ## Installation
-TBD
+
+Install the tool using pip:
+
+```bash
+pip install -e .
+```
+
+This will install the `docksec` command-line tool.
+
+## Requirements
+
+The following dependencies will be automatically installed:
+- langchain
+- langchain-openai
+- python-dotenv
+- pandas
+- tqdm
+- colorama
+- rich
+- fpdf
+- setuptools
 
 ## Usage
-To Run the application the following steps need to be followed.
 
-its preferred to create a virtual environment for it 
+### CLI Tool
 
-```
-python -m venv env # for mac use python3
-```
+After installation, you can use DockSec with a simple command:
 
-Install all the dependencies with 
-
-```
-pip install -r requirements.txt # use pip3 for mac
+```bash
+docksec path\to\Dockerfile
 ```
 
-Test the Docker File by passing path 
+#### Options:
+- `-i, --image`: Specify Docker image ID for scanning (optional)
+- `-o, --output`: Specify output file for the report (default: security_report.txt)
+- `--ai-only`: Run only AI-based recommendations
+- `--scan-only`: Run only Dockerfile/image scanning
 
-```
-python .\main.py "path to your docker file"
+### Examples:
+
+```bash
+# Basic analysis
+docksec path\to\Dockerfile
+
+# Analyze both Dockerfile and a specific image
+docksec path\to\Dockerfile -i myimage:latest
+
+# Only run AI recommendations
+docksec path\to\Dockerfile --ai-only
+
+# Only scan for vulnerabilities with custom output file
+docksec path\to\Dockerfile --scan-only -o custom_report.txt
 ```
 
-To check the Dockerfile as well as images for the vulnerabilities
+### Legacy Usage
 
-you need to setup Trivy and hadolint in your system for that you can use `python .\setup_external_tools.py` to setup but its recommended to use the documentation for [Trivy](https://trivy.dev/v0.18.3/installation/) and [hadolint](https://github.com/hadolint/hadolint?tab=readme-ov-file#install)
+You can still use the original commands:
 
+```bash
+# For AI-based recommendations
+python .\main.py "path\to\your\dockerfile"
+
+# For scanning both Dockerfile and images
+python docker_scanner.py <dockerfile_path> <image_name> [severity]
+# Example: python docker_scanner.py .\Dockerfile myapp:latest CRITICAL,HIGH
 ```
-python docker_scanner.py <dockerfile_path> <image_name> [severity] # python docker_scanner.py ./Dockerfile myapp:latest CRITICAL,HIGH
+
+#### External Tools Setup
+
+To check the Dockerfile as well as images for vulnerabilities, you need to setup Trivy and hadolint:
+
+```bash
+python .\setup_external_tools.py
 ```
+
+For manual installation, refer to [Trivy](https://trivy.dev/v0.18.3/installation/) and [hadolint](https://github.com/hadolint/hadolint?tab=readme-ov-file#install) documentation.
 
 ## CI/CD Integration
 TBD

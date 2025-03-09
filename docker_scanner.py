@@ -225,6 +225,19 @@ class DockerSecurityScanner:
             print(f"Error running Trivy scan: {e}")
             return False, str(e)
 
+    def advanced_scan(self) -> Dict:
+
+        try:
+            # Running Docker Scout quick scan
+            result = subprocess.run(
+                ["docker", "scout", "quickview", self.image_name], 
+                capture_output=True, text=True, check=True
+            )
+            print(f"Scan results for {self.image_name}:\n")
+            print(result.stdout)
+        except subprocess.CalledProcessError as e:
+            print(f"Error running Docker Scout: {e.stderr}")
+            return 0
     def run_full_scan(self, severity: str = "CRITICAL,HIGH") -> Dict:
         """
         Run all security scans and return results.
@@ -607,7 +620,7 @@ class DockerSecurityScanner:
         print(f"Security Score: {score.score}")
         return score.score
 
-
+    
 
 def main():
     """Main function to run the security scanner."""
@@ -636,8 +649,12 @@ def main():
         # Save results to file
         scanner.generate_all_reports(results)
 
-
+        print("\n=== Doing Advanced Scan ===")
         
+        # Run advanced scan
+        scanner.advanced_scan()
+
+        print("\n=== Finished Scanning ===")
         # Exit with appropriate code
         if results['dockerfile_scan']['success'] and results['image_scan']['success']:
             sys.exit(0)

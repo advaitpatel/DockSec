@@ -12,7 +12,17 @@ DockSec is an open-source AI-powered tool designed to analyze Dockerfiles for se
   - CI/CD pipeline support (GitHub Actions, GitLab CI, Jenkins).
 - Compliance Checks: Aligns with CIS Benchmarks, Docker Security Best Practices, and OWASP guidelines.
 
+
 ## Installation
+
+Create a virtual environment
+```bash
+python -m venv env
+```
+Activate the environment
+```bash
+env\Scripts\activate # for mac use "source env\bin\activate"
+```
 
 Install the tool using pip:
 

@@ -9,7 +9,7 @@ from fpdf import FPDF
 import sys
 import re
 from config import RESULTS_DIR
-from prompts import docker_score_prompt
+from config import docker_score_prompt
 from utils import ScoreResponse, get_llm, print_section
 
 class DockerSecurityScanner:

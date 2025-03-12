@@ -7,7 +7,7 @@ from utils import (
     AnalsesResponse,
     ScoreResponse
 )
-from prompts import docker_agent_prompt, docker_score_prompt
+from config import docker_agent_prompt, docker_score_prompt
 import os
 from langchain_core.output_parsers import StrOutputParser
 from pathlib import Path

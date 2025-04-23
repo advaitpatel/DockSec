@@ -5,10 +5,34 @@ import os
 load_dotenv()
 
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY","")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 if not OPENAI_API_KEY:
-    raise ValueError("No OpenAI API Key provided. Set an API key in the OPENAI_API_KEY in the .env file.")
+    error_message = """
+❌ No OpenAI API Key provided.
+
+You can fix this by setting the `OPENAI_API_KEY` in one of the following ways:
+
+🔹 PowerShell (Windows):
+    $env:OPENAI_API_KEY = "your-secret-key"
+
+🔹 Command Prompt (CMD on Windows):
+    set OPENAI_API_KEY=your-secret-key
+
+🔹 Bash/Zsh (Linux/macOS):
+    export OPENAI_API_KEY="your-secret-key"
+
+🔹 Or create a `.env` file with:
+    OPENAI_API_KEY=your-secret-key
+
+
+🔒 Reminder: Never hardcode your API key in public code or repositories. it is necessary to use Docksec
+
+"""
+    raise EnvironmentError(error_message.strip())
+else:
+    print("✅ OpenAI API Key found in environment variables.")
+
 
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 

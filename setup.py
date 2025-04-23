@@ -11,6 +11,12 @@ setup(
             "docksec=docksec:main",
         ],
     },
+    project_urls={
+        "Bug Tracker": "https://github.com/advaitpatel/DockSec/issues",
+        "Documentation": "https://github.com/advaitpatel/DockSec/blob/main/README.md",
+        "Source Code": "https://github.com/advaitpatel/DockSec",
+    },
+    python_requires=">=3.12",
     install_requires=[
         "langchain",
         "langchain-openai",
@@ -22,4 +28,5 @@ setup(
         "fpdf",
         "setuptools",
     ],
+    include_package_data=True,
 )

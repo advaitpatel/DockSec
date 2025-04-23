@@ -1,0 +1,6 @@
+include LICENSE
+include README.md
+include requirements.txt
+include .env.example
+recursive-include testfiles *
+global-exclude *.py[cod] __pycache__ *.so .DS_Store

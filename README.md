@@ -30,7 +30,27 @@ Install the tool using pip:
 pip install -e .
 ```
 
-This will install the `docksec` command-line tool.
+This will install the `docksec` using setup.py from local files.
+
+To install Docksec using pypi you can simply run 
+
+```bash
+pip install docksec # it will load the docksec tool from pypi
+```
+
+To completely use the AI scanning of docksec you have to setup the OPENAI-API-KEY 
+
+🔹 PowerShell (Windows):
+    `$env:OPENAI_API_KEY = "your-secret-key"`
+
+🔹 Command Prompt (CMD on Windows):
+    `set OPENAI_API_KEY=your-secret-key`
+
+🔹 Bash/Zsh (Linux/macOS):
+    `export OPENAI_API_KEY="your-secret-key"`
+
+🔹 Or create a `.env` file with:
+    `OPENAI_API_KEY=your-secret-key`
 
 ## Requirements
 

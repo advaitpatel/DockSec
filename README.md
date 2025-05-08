@@ -37,7 +37,12 @@ To install Docksec using pypi you can simply run
 ```bash
 pip install docksec # it will load the docksec tool from pypi
 ```
+you can also setup with brew
 
+```bash
+brew tap hafiz-Abdullahshahzad-DS/docksec-deployment-upgrade
+brew install docksec
+```
 To completely use the AI scanning of docksec you have to setup the OPENAI-API-KEY 
 
 🔹 PowerShell (Windows):

@@ -1,14 +1,14 @@
-[![GitHub Repo stars](https://img.shields.io/github/stars/glasskube/glasskube?style=flat)](https://github.com/advaitpatel/DockSec)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/advaitpatel/DockSec/blob/main/LICENSE)
-[![Docs](https://img.shields.io/badge/docs-glasskube.dev%2Fdocs-blue)](https://github.com/advaitpatel/DockSec/blob/main/README.md)
+[![GitHub Repo stars](https://img.shields.io/github/stars/docksec/docksec?style=flat)](https://github.com/advaitpatel/DockSec)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docs](https://img.shields.io/badge/docs-docksec.dev%2Fdocs-blue)](https://github.com/advaitpatel/DockSec/blob/main/README.md)
 [![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/advaitpatel/DockSec/blob/main/CONTRIBUTING.md)
-[![Downloads](https://img.shields.io/github/downloads/glasskube/glasskube/total)](https://github.com/advaitpatel/DockSec/releases)
+[![Downloads](https://img.shields.io/github/downloads/docksec/socksec/total)](https://github.com/advaitpatel/DockSec/releases)
 
 <br>
 <div align="center">
-  <a href="https://github.com/advaitpatel/DockSec">
+  <!-- <a href="https://github.com/advaitpatel/DockSec">
     <img src="https://github.com/advaitpatel/DockSec/blob/main/images/docksec-logo-II.png" alt="DockSec Logo" height="160">
-  </a>
+  </a> -->
   <img referrerpolicy="no-referrer-when-downgrade" src="https://github.com/advaitpatel/DockSec/blob/main/images/docksec-logo-II.png" />
 
 <h3 align="center">🧊 The next generation AI-Powered Docker Security Analyzer 📦</h3>
@@ -54,9 +54,9 @@ Here’s why DockSec is different:
 🧠 **Shift Left, Intelligently**: Helps developers fix security issues early — without friction or false positives.
 
 
-## 🌟 Features
+<!-- ## 🌟 Features
 
-COMING SOON
+COMING SOON -->
 
 
 ## 🧩 Architecture Diagram
@@ -64,6 +64,8 @@ COMING SOON
 Here’s how DockSec works behind the scenes:
 
 ![DockSec Architecture](https://github.com/advaitpatel/DockSec/blob/main/images/docksec-architecture-diagram-II.png)
+
+![DockSec Architecture](https://github.com/advaitpatel/DockSec/blob/main/images/docksec-architecture-diagram-III.png)
 
 - **Input**: Dockerfile + optional Docker image
 - **Static Analysis**: Trivy, Hadolint, Docker Bench

@@ -2,9 +2,12 @@ from setuptools import setup
 
 setup(
     name="docksec",
-    version="0.1.0",
-    description="Docker security analysis tool",
+    version="0.0.1",
+    description="AI-Powered Docker Security Analyzer",
+    long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
     author="Advait Patel",
+    url="https://github.com/advaitpatel/DockSec",
     py_modules=["docksec"],
     entry_points={
         "console_scripts": [
@@ -27,6 +30,11 @@ setup(
         "rich",
         "fpdf",
         "setuptools",
+    ],
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
     ],
     include_package_data=True,
 )

@@ -1,41 +1,33 @@
 [![GitHub Repo stars](https://img.shields.io/github/stars/glasskube/glasskube?style=flat)](https://github.com/advaitpatel/DockSec)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/advaitpatel/DockSec/blob/main/LICENSE)
 [![Docs](https://img.shields.io/badge/docs-glasskube.dev%2Fdocs-blue)](https://github.com/advaitpatel/DockSec/blob/main/README.md)
 [![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/advaitpatel/DockSec/blob/main/CONTRIBUTING.md)
-[![](https://dcbadge.vercel.app/api/server/SxH6KUCGH7?style=flat)](#)
 [![Downloads](https://img.shields.io/github/downloads/glasskube/glasskube/total)](https://github.com/advaitpatel/DockSec/releases)
-[![CNCF Landscape](https://img.shields.io/badge/CNCF%20Landscape-5699C6)](#)
 
 <br>
 <div align="center">
   <a href="https://github.com/advaitpatel/DockSec">
     <img src="#" alt="DockSec Logo" height="160">
   </a>
-  <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=899d5aee-625c-4345-bad0-713d29caf929" />
+  <img referrerpolicy="no-referrer-when-downgrade" src="#" />
 
 <h3 align="center">🧊 The next generation AI-Powered Docker Security Analyzer 📦</h3>
 
   <p align="center">
     <a href="#"><strong>Getting started »</strong></a>
     <br> <br>
-    <a href="#"><strong>Explore our website »</strong></a>
-    <br>
-    <br>
     <a href="https://github.com/advaitpatel/DockSec" target="_blank">GitHub</a>
     .
     <a href="#" target="_blank">Docker Hub</a>
     .
-    <a href="#" target="_blank">Artifact Hub</a>
+    <a href="https://pypi.org/project/docksec/" target="_blank">PYPI Hub</a>
     .
-    <a href="https://www.linkedin.com/company/glasskube/" target="_blank">LinkedIn</a>
+    <a href="https://www.linkedin.com/in/advaitpatel93/" target="_blank">LinkedIn</a>
     . 
-     <a href="https://x.com/intent/follow?screen_name=glasskube" target="_blank">Twitter / X</a>
+     <a href="https://x.com/AdvaitPatel93" target="_blank">Twitter / X</a>
   </p>
 </div>
-
 <hr>
-
-![Glasskube GUI](https://github.com/glasskube/glasskube/assets/3041752/54b20ffe-1daf-4905-abc5-37e99e056b02)
 
 
 ## 🔐 What is DockSec?
@@ -45,6 +37,12 @@ DockSec is an **Open Source, AI-powered Docker Security Analyzer** that helps de
 It combines trusted static analysis tools like Trivy, Hadolint, and Docker Bench with a powerful AI engine (LangChain + LLM) to provide actionable security insights, remediation suggestions, and human-readable reports.
 
 Unlike traditional scanners that overwhelm users with raw output, DockSec focuses on developer-first security — delivering context-aware recommendations, risk scoring, and clean reports in HTML, PDF, or JSON formats. It seamlessly integrates into CI/CD pipelines or can be run locally via a simple CLI.
+
+
+## 🎯 Architecture Diagram
+
+COMING SOON
+
 
 ## ❓Why DockSec?
 
@@ -62,6 +60,7 @@ Here’s why DockSec is different:
 
 🧠 **Shift Left, Intelligently**: Helps developers fix security issues early — without friction or false positives.
 
+
 ## 🗄️ Table Of Contents
 
 - [Features](https://github.com/glasskube/#-features)
@@ -76,89 +75,120 @@ Here’s why DockSec is different:
 - [Activity](https://github.com/glasskube/glasskube#-activity)
 - [License](https://github.com/glasskube/glasskube#-license)
 
-## ✨ Features
-|                                                                                                                                                                                                                                                                  |                                                                                                              |
-|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| **Focusing on simplicity and reliability with our CLI and UI** <br> Easily install packages in your cluster via the Glasskube UI, where all packages are conveniently located, eliminating the need to search for a Helm repository.                             | ![Glasskube GUI](https://github.com/glasskube/glasskube/assets/3041752/323994d6-6b08-4dca-ac59-d29ae6b37f94) |
-| **Package configurations** <br> Configure packages with typesafe input values via the UI or interactive CLI questionnaire. Inject values from other packages, ConfigMaps, and Secrets easily. No more untyped and undocumented `values.yaml` files.              | ![Configuration](https://github.com/glasskube/glasskube/assets/3041752/df6bd7d4-7cac-435b-b3a0-31c3cab6069b) |
-| **Dependency Management** <br> Glasskube packages are dependency aware, so they can be used and referenced by multiple other packages. They will also get installed in the correct namespace. This is how umbrella charts should have worked from the beginning. | ![Dependency](https://github.com/glasskube/glasskube/assets/3041752/9588b3fc-2a87-454e-97ff-b0f7558717bc)    |
-| **Safe Package Updates** <br> Preview and perform pending updates to your desired version with a single click (or CLI command). All updates are pre-tested by the Glasskube test suite.                                                                          | ![Updates](https://github.com/glasskube/glasskube/assets/3041752/a6e6dc72-9919-4d15-addf-bc709ec76d9d)       |
-| **Reactions and comments** <br> Discuss and upvote your favorite Kubernetes package on [GitHub](https://github.com/glasskube/glasskube/discussions/categories/packages) or right inside the Glasskube UI.                                                         | ![Reactions](https://github.com/glasskube/glasskube/assets/3041752/56f08373-fbbe-46fd-820e-fb637114336b)     |
-| **GitOps Integration** <br> All Glasskube packages are custom resources, manageable via GitOps. We're also integrating with [renovate](https://github.com/renovatebot/renovate/issues/29322)                                                                     | ![GitOps](https://github.com/glasskube/glasskube/assets/3041752/8c359e61-9eec-4413-9c13-bca5cd8710d1)        |
-| **Multiple Repositories and private packages** <br> Use multiple repositories and publish your own private packages. This could be your companies internal services packages, so all developers will have up-to-date and easily configured internal services.    | ![Repo](https://github.com/glasskube/glasskube/assets/130456438/e2f4472b-5b80-4043-9c78-9ccabd8f3337)        |
+## 🚀 How To Install DockSec
 
-
-## 🚀 Quick Start - Install the Beta Version.
-
-You can install DockSec via [Homebrew](https://brew.sh/):
+You can install DockSec via [PyPI](https://pypi.org/project/docksec/)
 
 ```bash
-brew install glasskube/tap/glasskube
+pip install docksec
 ```
 
-For other installation options check out our [installation guide](https://glasskube.dev/docs/getting-started/install).
-
-Once the CLI is installed, the first step is to install the necessary components in your cluster. To do that, run
-```sh
-glasskube bootstrap
-```
-
-After successfully bootstrapping your cluster, you are ready to start the package manager UI:
+OR You can install DockSec using Python virtual environment
 
 ```bash
-glasskube serve
-```
+python -m venv env
 
-This command will open [`http://localhost:8580`](http://localhost:8580) in your default browser.
+# On Windows
+env\Scripts\activate
+
+# On macOS/Linux
+source env/bin/activate
+
+pip install -e .
+```
+This will install the docksec using `setup.py` from local files.
+
+To completely use the AI scanning of DockSec, you have to setup the `OPENAI-API-KEY`
+
+  - 🔹 PowerShell (Windows): $env:OPENAI_API_KEY = "your-secret-key"
+
+  - 🔹 Command Prompt (CMD on Windows): set OPENAI_API_KEY=your-secret-key
+
+  - 🔹 Bash/Zsh (Linux/macOS): export OPENAI_API_KEY="your-secret-key"
+
+  - 🔹 Or create a .env file with: OPENAI_API_KEY=your-secret-key
+
 Congratulations, you can now explore and install all our available packages! 🎉
+
 
 ## 🎬 DockSec Demo Video
 
+[![DockSec Demo Video - Coming Soon](#)](#)
 
-[![Glasskube Demo Video](https://i.ytimg.com/vi/aIeTHGWsG2c/hq720.jpg)](https://www.youtube.com/watch?v=aIeTHGWsG2c)
 
-## 📦 Supported Packages
+## 📦 Required Packages
 
-Glasskube already supports a wide range of packages, including, but not limited to:
+The following dependencies will be automatically installed:
 
-- Kubernetes Dashboard [`kubernetes/dashboard`](https://github.com/kubernetes/dashboard)
-- cert-manager [`cert-manager/cert-manager`](https://github.com/cert-manager/cert-manager)
-- Ingress-NGINX Controller [`kubernetes/ingress-nginx`](https://github.com/kubernetes/ingress-nginx)
-- Kube Prometheus Stack [`prometheus-operator/kube-prometheus`](https://github.com/prometheus-operator/kube-prometheus)
-- Cloud Native PG [`cloudnative-pg/cloudnative-pg`](https://github.com/cloudnative-pg/cloudnative-pg)
+  - `langchain`
+  - `langchain-openai`
+  - `python-dotenv`
+  - `pandas`
+  - `tqdm`
+  - `colorama`
+  - `rich`
+  - `fpdf`
+  - `setuptools`
 
-You can find all supported and planned packages on [glasskube.dev/packages](https://glasskube.dev/packages/).
 
-## Architecture Diagram
+## 📝 How To Use DockSec using CLI
 
-```mermaid
----
-title: glasskube install [package]
----
-flowchart BT
-  UI([UI])-- via local server<br>http://localhost:8580 ---Client(Client)
-  CLI([CLI])-- cobra cli ---Client
-  Client-- (1) validate package -->Repo[(Package Repo)]
-  Client-- (2) create<br>`Package` CR -->Kubernetes(((Kubernetes API)))
-  subgraph Cluster
-    Kubernetes-- (3) reconcile<br>`Package` -->PackageController
-    PackageController-- (4) create `PackageInfo`<br>if not present-->Kubernetes
-    Kubernetes-- (5) reconcile<br>`PackageInfo`-->PackageInfoController
-    end
-  PackageInfoController<-- (6) update package manifest -->Repo
-  subgraph Cluster
-    PackageInfoController-- (7) update manifest<br>in `PackageInfo` -->Kubernetes
-    Kubernetes-- (8) reconcile<br>`PackageInfo` -->PackageController
-    PackageController-- (9) deploy package -->Kubernetes
-  end
+After installation, you can use DockSec with a simple command:
 
-  Kubernetes-- (10) package status -->Client 
+```bash
+docksec path\to\Dockerfile
 ```
+
+### Options:
+  - `-i, --image`: Specify Docker image ID for scanning (optional)
+  - `-o, --output`: Specify output file for the report (default: security_report.txt)
+  - `--ai-only`: Run only AI-based recommendations
+  - `--scan-only`: Run only Dockerfile/image scanning
+
+### Examples:
+
+```bash
+# Basic analysis
+docksec path\to\Dockerfile
+
+# Analyze both Dockerfile and a specific image
+docksec path\to\Dockerfile -i myimage:latest
+
+# Only run AI recommendations
+docksec path\to\Dockerfile --ai-only
+
+# Only scan for vulnerabilities with custom output file
+docksec path\to\Dockerfile --scan-only -o custom_report.txt
+```
+
+### Legacy Usage
+
+You can still use the original commands:
+
+```bash
+# For AI-based recommendations
+python .\main.py "path\to\your\dockerfile"
+
+# For scanning both Dockerfile and images
+python docker_scanner.py <dockerfile_path> <image_name> [severity]
+# Example: python docker_scanner.py .\Dockerfile myapp:latest CRITICAL,HIGH
+```
+
+### External Tools Setup
+
+To check the Dockerfile as well as images for vulnerabilities, you need to setup `Trivy` and `hadolint`:
+
+```bash
+python .\setup_external_tools.py
+```
+
+For manual installation, refer to [Trivy] (https://trivy.dev/v0.18.3/installation/) and [hadolint] (https://github.com/hadolint/hadolint?tab=readme-ov-file#install) documentation.
+
 
 ## ☝️ Need Help or Want to Provide Feedback?
 
-If you encounter any problems, we will be happy to support you wherever we can on our [Discord](https://discord.gg/SxH6KUCGH7).
-For bugs, issues or feature requests fee free to [open an issue](https://github.com/glasskube/glasskube/issues/new/choose).
+If you encounter any problems, we will be happy to support you wherever we can.
+For bugs, issues or feature requests feel free to [open an issue](https://github.com/advaitpatel/DockSec/issues/new).
 We are happy to assist you with anything related to the project.
 
 
@@ -166,13 +196,6 @@ We are happy to assist you with anything related to the project.
 
 Your feedback is invaluable to us as we continue to improve DockSec. If you'd like to contribute, consider trying out the beta version, reporting any issues, and sharing your suggestions. See [the contributing guide](CONTRIBUTING.md) for detailed instructions on how you can contribute.
 
-## 🤩 Thanks to all our Contributors
-
-Thanks to everyone, that is supporting this project. We are thankful, for every contribution, no matter its size!
-
-<a href="https://github.com/glasskube/glasskube/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=glasskube/glasskube" />
-</a>
 
 ## 👾 Activity
 
@@ -180,4 +203,4 @@ Thanks to everyone, that is supporting this project. We are thankful, for every 
 
 ## 📘 License
 
-The DockSec is licensed under the Apache 2.0 license. For more information check the [LICENSE](https://github.com/glasskube/glasskube/blob/main/LICENSE) file for details.
+The DockSec is licensed under the MIT license. For more information check the [LICENSE](https://github.com/advaitpatel/DockSec/blob/main/LICENSE) file for details.

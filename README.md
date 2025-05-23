@@ -7,23 +7,21 @@
 <br>
 <div align="center">
   <a href="https://github.com/advaitpatel/DockSec">
-    <img src="#" alt="DockSec Logo" height="160">
+    <img src="https://github.com/advaitpatel/DockSec/blob/main/images/docksec-logo-II.png" alt="DockSec Logo" height="160">
   </a>
-  <img referrerpolicy="no-referrer-when-downgrade" src="#" />
+  <img referrerpolicy="no-referrer-when-downgrade" src="https://github.com/advaitpatel/DockSec/blob/main/images/docksec-logo-II.png" />
 
 <h3 align="center">🧊 The next generation AI-Powered Docker Security Analyzer 📦</h3>
 
   <p align="center">
-    <a href="#"><strong>Getting started »</strong></a>
-    <br> <br>
     <a href="https://github.com/advaitpatel/DockSec" target="_blank">GitHub</a>
-    .
+    🔹
     <a href="#" target="_blank">Docker Hub</a>
-    .
-    <a href="https://pypi.org/project/docksec/" target="_blank">PYPI Hub</a>
-    .
+    🔹
+    <a href="https://pypi.org/project/docksec/" target="_blank">PyPI Hub</a>
+    🔹
     <a href="https://www.linkedin.com/in/advaitpatel93/" target="_blank">LinkedIn</a>
-    . 
+    🔹
      <a href="https://x.com/AdvaitPatel93" target="_blank">Twitter / X</a>
   </p>
 </div>
@@ -37,11 +35,6 @@ DockSec is an **Open Source, AI-powered Docker Security Analyzer** that helps de
 It combines trusted static analysis tools like Trivy, Hadolint, and Docker Bench with a powerful AI engine (LangChain + LLM) to provide actionable security insights, remediation suggestions, and human-readable reports.
 
 Unlike traditional scanners that overwhelm users with raw output, DockSec focuses on developer-first security — delivering context-aware recommendations, risk scoring, and clean reports in HTML, PDF, or JSON formats. It seamlessly integrates into CI/CD pipelines or can be run locally via a simple CLI.
-
-
-## 🎯 Architecture Diagram
-
-COMING SOON
 
 
 ## ❓Why DockSec?
@@ -61,21 +54,25 @@ Here’s why DockSec is different:
 🧠 **Shift Left, Intelligently**: Helps developers fix security issues early — without friction or false positives.
 
 
-## 🗄️ Table Of Contents
+## 🌟 Features
 
-- [Features](https://github.com/glasskube/#-features)
-- [Quick Start](https://github.com/glasskube/#-quick-start)
-- [How to install your first package](https://github.com/glasskube/glasskube#-how-to-install-you-first-package)
-- [Supported Packages](https://github.com/glasskube/glasskube#-supported-packages)
-- [Architecture Diagram](https://github.com/glasskube/glasskube#architecture-diagram)
-- [Need help?](https://github.com/glasskube/glasskube#-need-help)
-- [Related projects](https://github.com/glasskube/glasskube#-related-projects)
-- [How to Contribute](https://github.com/glasskube/glasskube#-how-to-contribute)
-- [Supported by](https://github.com/glasskube/glasskube#-thanks-to-all-our-contributors)
-- [Activity](https://github.com/glasskube/glasskube#-activity)
-- [License](https://github.com/glasskube/glasskube#-license)
+COMING SOON
 
-## 🚀 How To Install DockSec
+
+## 🧩 Architecture Diagram
+
+Here’s how DockSec works behind the scenes:
+
+![DockSec Architecture](https://github.com/advaitpatel/DockSec/blob/main/images/docksec-architecture-diagram-II.png)
+
+- **Input**: Dockerfile + optional Docker image
+- **Static Analysis**: Trivy, Hadolint, Docker Bench
+- **AI Layer**: LangChain + OpenAI for intelligent insights
+- **Output**: Security reports (PDF, HTML, JSON, CSV)
+- **Modes**: CLI, CI/CD, AI-only, scan-only
+
+
+## 🚀 Installation
 
 You can install DockSec via [PyPI](https://pypi.org/project/docksec/)
 
@@ -96,7 +93,7 @@ source env/bin/activate
 
 pip install -e .
 ```
-This will install the docksec using `setup.py` from local files.
+This will install the DockSec using `setup.py` from local files.
 
 To completely use the AI scanning of DockSec, you have to setup the `OPENAI-API-KEY`
 
@@ -107,16 +104,6 @@ To completely use the AI scanning of DockSec, you have to setup the `OPENAI-API-
   - 🔹 Bash/Zsh (Linux/macOS): export OPENAI_API_KEY="your-secret-key"
 
   - 🔹 Or create a .env file with: OPENAI_API_KEY=your-secret-key
-
-Congratulations, you can now explore and install all our available packages! 🎉
-
-
-## 🎬 DockSec Demo Video
-
-[![DockSec Demo Video - Coming Soon](#)](#)
-
-
-## 📦 Required Packages
 
 The following dependencies will be automatically installed:
 
@@ -130,8 +117,10 @@ The following dependencies will be automatically installed:
   - `fpdf`
   - `setuptools`
 
+Congratulations, you can now explore and install all our available packages! 🎉
 
-## 📝 How To Use DockSec using CLI
+
+## 📝 How to Use DockSec (CLI)
 
 After installation, you can use DockSec with a simple command:
 
@@ -161,7 +150,7 @@ docksec path\to\Dockerfile --ai-only
 docksec path\to\Dockerfile --scan-only -o custom_report.txt
 ```
 
-### Legacy Usage
+  - ### Legacy Usage
 
 You can still use the original commands:
 
@@ -174,7 +163,7 @@ python docker_scanner.py <dockerfile_path> <image_name> [severity]
 # Example: python docker_scanner.py .\Dockerfile myapp:latest CRITICAL,HIGH
 ```
 
-### External Tools Setup
+  - ### External Tools Setup
 
 To check the Dockerfile as well as images for vulnerabilities, you need to setup `Trivy` and `hadolint`:
 
@@ -183,6 +172,11 @@ python .\setup_external_tools.py
 ```
 
 For manual installation, refer to [Trivy] (https://trivy.dev/v0.18.3/installation/) and [hadolint] (https://github.com/hadolint/hadolint?tab=readme-ov-file#install) documentation.
+
+
+## 🎬 Demo Video
+
+[![DockSec Demo Video - Coming Soon](#)](#)
 
 
 ## ☝️ Need Help or Want to Provide Feedback?
@@ -199,7 +193,8 @@ Your feedback is invaluable to us as we continue to improve DockSec. If you'd li
 
 ## 👾 Activity
 
-![Glasskube Activity](https://repobeats.axiom.co/api/embed/c5aac6f5d22bd6b83a21ae51353dd7bcb43f9517.svg "Glasskube activity image")
+![DockSec Activity](https://repobeats.axiom.co/api/embed/c5aac6f5d22bd6b83a21ae51353dd7bcb43f9517.svg "DockSec activity image")
+
 
 ## 📘 License
 

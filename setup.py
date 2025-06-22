@@ -2,13 +2,13 @@ from setuptools import setup
 
 setup(
     name="docksec",
-    version="0.0.1",
+    version="0.0.5",
     description="AI-Powered Docker Security Analyzer",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     author="Advait Patel",
     url="https://github.com/advaitpatel/DockSec",
-    py_modules=["docksec"],
+    py_modules=["docksec", "main", "docker_scanner", "utils", "config", "setup_external_tools"],
     entry_points={
         "console_scripts": [
             "docksec=docksec:main",

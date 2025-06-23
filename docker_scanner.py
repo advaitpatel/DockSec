@@ -28,7 +28,11 @@ class DockerSecurityScanner:
         """
         self.dockerfile_path = dockerfile_path
         self.image_name = image_name
-        self.required_tools = ['docker', 'hadolint', 'trivy']
+        # self.required_tools = ['docker', 'hadolint', 'trivy']
+        self.required_tools = ['docker', 'trivy']
+        if dockerfile_path:
+            self.required_tools.append('hadolint')
+        
         self.RESULTS_DIR = results_dir
         llm = get_llm()
         self.score_chain = docker_score_prompt | llm.with_structured_output(ScoreResponse, method="json_mode")
@@ -36,25 +40,75 @@ class DockerSecurityScanner:
         # Ensure results directory exists
         os.makedirs(self.RESULTS_DIR, exist_ok=True)
         
+
         # Verify required tools
         missing_tools = self._check_tools()
         if missing_tools:
             raise ValueError(f"Missing required tools: {', '.join(missing_tools)}")
         
         # Verify Dockerfile exists
-        if not os.path.exists(dockerfile_path):
+        if dockerfile_path and not os.path.exists(dockerfile_path):
             raise ValueError(f"Dockerfile not found at {dockerfile_path}")
         
         # Verify Docker image exists
         try:
             subprocess.run(
-                ['docker', 'image', 'inspect', image_name],
+                ['sudo','docker', 'image', 'inspect', image_name],
                 capture_output=True,
                 check=True
             )
         except subprocess.CalledProcessError:
             raise ValueError(f"Docker image '{image_name}' not found locally")
+    def run_image_only_scan(self, severity: str = "CRITICAL,HIGH") -> Dict:
+        """
+        Run image-only security scan without Dockerfile analysis.
+        
+        Args:
+            severity: Comma-separated list of severity levels to scan for
             
+        Returns:
+            Dictionary containing scan results
+        """
+        print(f"\n=== Starting image-only scan for {self.image_name} ===")
+        
+        results = {
+            'dockerfile_scan': {
+                'success': True,  # Skip Dockerfile scan
+                'output': "Skipped - Image-only scan mode",
+                'skipped': True
+            },
+            'image_scan': {
+                'success': False,
+                'output': None
+            },
+            'json_data': None,
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'image_name': self.image_name,
+            'dockerfile_path': self.dockerfile_path or "N/A - Image-only scan",
+            'scan_mode': 'image_only'
+        }
+
+        # Run image vulnerability scan
+        image_success, image_output = self.scan_image(severity)
+        results['image_scan']['success'] = image_success
+        results['image_scan']['output'] = image_output
+
+        # Get JSON data for vulnerabilities
+        json_success, json_data = self.scan_image_json(severity)
+        if json_success:
+            results['json_data'] = json_data
+
+        # Print final summary
+        print("\n=== Image-Only Scan Summary ===")
+        if image_success and not json_data:
+            print("Image scan completed successfully with no vulnerabilities found.")
+        elif json_data:
+            print(f"Image scan completed. Found {len(json_data)} vulnerabilities.")
+        else:
+            print("Image scan encountered issues. Please review the results above.")
+
+        return results 
+          
     def _check_tools(self) -> List[str]:
         """Check if all required tools are installed and return list of missing tools."""
         missing_tools = []
@@ -365,7 +419,7 @@ class DockerSecurityScanner:
     def save_results_to_pdf(self, results: Dict) -> str:
         """
         Save scan results to a PDF file with formatting.
-        Handles text wrapping and proper display of long content.
+        Handles both full scans and image-only scans.
         
         Args:
             results: The scan results to save
@@ -393,101 +447,118 @@ class DockerSecurityScanner:
                     self.multi_cell(0, 7, content)
                     self.ln(2)
                 
-                def wrapped_cell(self, w, h, txt, border=0, align='', fill=False):
-                    """Cell that wraps text if it's too long"""
-                    if self.get_string_width(txt) > w:
-                        self.multi_cell(w, h, txt, border, align)
-                    else:
-                        self.cell(w, h, txt, border, 0, align, fill)
-                
-                def add_table_row(self, col_widths, data, header=False):
-                    """Add a row to a table with proper text wrapping"""
-                    # Calculate max height needed for this row
-                    line_heights = []
-                    for i, width in enumerate(col_widths):
-                        if i < len(data):  # Ensure we don't go out of bounds
-                            text = str(data[i])
-                            # Calculate how many lines this text will take
-                            if self.get_string_width(text) > width - 4:  # -4 for padding
-                                lines_needed = 1 + int(self.get_string_width(text) / (width - 4))
-                                line_heights.append(lines_needed * 5)  # 5 points per line
-                            else:
-                                line_heights.append(7)  # Default height
-                    
-                    max_height = max(line_heights) if line_heights else 7
-                    
-                    # Store starting position
-                    x_start = self.get_x()
-                    y_start = self.get_y()
-                    
-                    # Set font for header or regular row
-                    if header:
-                        self.set_font('Arial', 'B', 8)
-                    else:
-                        self.set_font('Arial', '', 8)
-                    
-                    # Print each cell
-                    for i, width in enumerate(col_widths):
-                        if i < len(data):  # Ensure we don't go out of bounds
-                            text = str(data[i])
-                            self.set_xy(x_start, y_start)
-                            self.multi_cell(width, 5, text, 1, 'L')
-                            x_start += width
-                    
-                    # Move to next line, accounting for the tallest cell
-                    self.set_y(y_start + max_height)
+                def add_section_header(self, title):
+                    """Add a section header"""
+                    self.set_font('Arial', 'B', 12)
+                    self.cell(0, 10, title, 0, 1)
+                    self.ln(2)
             
-            # Create PDF instance with custom class
+            # Create PDF instance
             pdf = PDF()
             pdf.add_page()
             
             # Add title
             pdf.set_font('Arial', 'B', 16)
-            pdf.cell(0, 10, 'Docker Security Scan Report', 0, 1, 'C')
+            scan_mode = results.get('scan_mode', 'full')
+            title = f'Docker Security Scan Report ({scan_mode.upper()})'
+            pdf.cell(0, 10, title, 0, 1, 'C')
             pdf.ln(5)
             
             # Add scan information section
-            pdf.set_font('Arial', 'B', 12)
-            pdf.cell(0, 10, 'Scan Information', 0, 1)
-            
+            pdf.add_section_header('Scan Information')
             pdf.multi_cell_with_title('Image:', self.image_name)
-            pdf.multi_cell_with_title('Dockerfile:', self.dockerfile_path)
+            pdf.multi_cell_with_title('Scan Mode:', scan_mode.replace('_', ' ').title())
+            pdf.multi_cell_with_title('Dockerfile:', results.get('dockerfile_path', 'N/A'))
             pdf.multi_cell_with_title('Scan Date:', results.get('timestamp', ''))
             pdf.ln(5)
             
-            # Add Dockerfile scan results
-            pdf.set_font('Arial', 'B', 12)
-            pdf.cell(0, 10, 'Dockerfile Scan Results', 0, 1)
-            
-            pdf.set_font('Arial', '', 10)
-            if results['dockerfile_scan']['success']:
-                pdf.cell(0, 7, 'No Dockerfile linting issues found.', 0, 1)
-            else:
-                pdf.cell(0, 7, 'Dockerfile linting issues:', 0, 1)
-                pdf.ln(2)
-                pdf.set_font('Courier', '', 8)
+            # Add image information if available (for extended scans)
+            if 'image_info' in results:
+                pdf.add_section_header('Image Information')
+                image_info = results['image_info']
                 
-                # Handle multiline output with proper wrapping
-                if results['dockerfile_scan']['output']:
-                    # Calculate page width with margins
-                    page_width = pdf.w - pdf.l_margin - pdf.r_margin
-                    
-                    for line in results['dockerfile_scan']['output'].split('\n'):
-                        # Check if line fits on current page
-                        if pdf.get_string_width(line) > page_width:
-                            # Split long lines
-                            pdf.multi_cell(0, 5, line)
-                        else:
-                            pdf.cell(0, 5, line, 0, 1)
+                if image_info.get('size'):
+                    size_mb = round(image_info['size'] / (1024*1024), 2)
+                    pdf.multi_cell_with_title('Size:', f"{size_mb} MB")
+                
+                if image_info.get('created'):
+                    pdf.multi_cell_with_title('Created:', image_info['created'][:19])  # Truncate timestamp
+                
+                if image_info.get('architecture'):
+                    pdf.multi_cell_with_title('Architecture:', image_info['architecture'])
+                
+                if image_info.get('os'):
+                    pdf.multi_cell_with_title('OS:', image_info['os'])
+                
+                pdf.ln(5)
+            
+            # Add configuration analysis if available
+            if 'config_analysis' in results:
+                pdf.add_section_header('Configuration Analysis')
+                config_analysis = results['config_analysis']
+                
+                # Count issues
+                high_count = len(config_analysis.get('high_risk', []))
+                medium_count = len(config_analysis.get('medium_risk', []))
+                low_count = len(config_analysis.get('low_risk', []))
+                total_count = high_count + medium_count + low_count
+                
+                pdf.multi_cell_with_title('Total Issues:', str(total_count))
+                if high_count > 0:
+                    pdf.multi_cell_with_title('High Risk:', str(high_count))
+                if medium_count > 0:
+                    pdf.multi_cell_with_title('Medium Risk:', str(medium_count))
+                if low_count > 0:
+                    pdf.multi_cell_with_title('Low Risk:', str(low_count))
+                
+                # Add issue details
+                if high_count > 0:
+                    pdf.ln(3)
+                    pdf.set_font('Arial', 'B', 10)
+                    pdf.cell(0, 7, 'High-Risk Issues:', 0, 1)
+                    pdf.set_font('Arial', '', 9)
+                    for issue in config_analysis['high_risk']:
+                        pdf.multi_cell(0, 5, f"• {issue}")
+                
+                if medium_count > 0:
+                    pdf.ln(3)
+                    pdf.set_font('Arial', 'B', 10)
+                    pdf.cell(0, 7, 'Medium-Risk Issues:', 0, 1)
+                    pdf.set_font('Arial', '', 9)
+                    for issue in config_analysis['medium_risk']:
+                        pdf.multi_cell(0, 5, f"• {issue}")
+                
+                if low_count > 0:
+                    pdf.ln(3)
+                    pdf.set_font('Arial', 'B', 10)
+                    pdf.cell(0, 7, 'Low-Risk Issues:', 0, 1)
+                    pdf.set_font('Arial', '', 9)
+                    for issue in config_analysis['low_risk']:
+                        pdf.multi_cell(0, 5, f"• {issue}")
+                
+                pdf.ln(5)
+            
+            # Add Dockerfile scan results (only if not skipped)
+            if not results['dockerfile_scan'].get('skipped', False):
+                pdf.add_section_header('Dockerfile Scan Results')
+                
+                if results['dockerfile_scan']['success']:
+                    pdf.set_font('Arial', '', 10)
+                    pdf.cell(0, 7, 'No Dockerfile linting issues found.', 0, 1)
                 else:
-                    pdf.cell(0, 5, "No output available", 0, 1)
+                    pdf.set_font('Arial', '', 10)
+                    pdf.cell(0, 7, 'Dockerfile linting issues:', 0, 1)
+                    pdf.ln(2)
+                    pdf.set_font('Courier', '', 8)
+                    
+                    if results['dockerfile_scan']['output']:
+                        for line in results['dockerfile_scan']['output'].split('\n')[:20]:  # Limit lines
+                            pdf.multi_cell(0, 5, line)
+                
+                pdf.ln(5)
             
-            pdf.ln(5)
-            
-            # Add vulnerability scan summary
-            pdf.set_font('Arial', 'B', 12)
-            pdf.cell(0, 10, 'Vulnerability Scan Summary', 0, 1)
-            
+            # Add vulnerability scan summary (rest remains the same)
+            pdf.add_section_header('Vulnerability Scan Summary')
             vulnerabilities = results.get('json_data', [])
             
             if not vulnerabilities:
@@ -508,62 +579,31 @@ class DockerSecurityScanner:
                 
                 pdf.ln(5)
                 
-                # Add vulnerability details with proper table format
-                pdf.set_font('Arial', 'B', 12)
-                pdf.cell(0, 10, 'Vulnerability Details', 0, 1)
-                
-                # Define column widths based on page size
-                page_width = pdf.w - pdf.l_margin - pdf.r_margin
-                col_widths = [40, 20, 40, 40, page_width - 140]  # ID, Severity, Package, Version, Title
-                
-                # Add table headers
-                pdf.add_table_row(
-                    col_widths, 
-                    ['Vulnerability ID', 'Severity', 'Package', 'Version', 'Title/Description'],
-                    header=True
-                )
-                
-                # Add vulnerability rows with proper text wrapping
-                for vuln in vulnerabilities[:50]:  # Limit to 50 to prevent enormous PDFs
-                    # Check if we need to add a new page
-                    if pdf.get_y() > pdf.h - 30:  # Check if near bottom of page
-                        pdf.add_page()
+                # Add limited vulnerability details table
+                if len(vulnerabilities) > 0:
+                    pdf.add_section_header('Top Vulnerabilities')
                     
-                    row_data = [
-                        vuln.get('VulnerabilityID', ''),
-                        vuln.get('Severity', ''),
-                        vuln.get('PkgName', ''),
-                        vuln.get('InstalledVersion', ''),
-                        vuln.get('Title', '')
-                    ]
-                    pdf.add_table_row(col_widths, row_data)
-                
-                if len(vulnerabilities) > 50:
-                    pdf.ln(5)
-                    pdf.cell(0, 7, f'Note: Only showing 50 of {len(vulnerabilities)} vulnerabilities. See CSV for complete list.', 0, 1)
-            
-            # Add CVSS scoring details if available
-            if any(vuln.get('CVSS') for vuln in vulnerabilities):
-                pdf.add_page()
-                pdf.set_font('Arial', 'B', 12)
-                pdf.cell(0, 10, 'CVSS Score Details', 0, 1)
-                
-                # Create CVSS table
-                col_widths = [40, 20, page_width - 60]  # ID, CVSS Score, Description
-                pdf.add_table_row(
-                    col_widths, 
-                    ['Vulnerability ID', 'CVSS Score', 'Description'],
-                    header=True
-                )
-                
-                for vuln in vulnerabilities[:50]:
-                    if vuln.get('CVSS'):
-                        row_data = [
-                            vuln.get('VulnerabilityID', ''),
-                            str(vuln.get('CVSS', '')),
-                            vuln.get('Description', '')
-                        ]
-                        pdf.add_table_row(col_widths, row_data)
+                    # Show top 20 vulnerabilities
+                    for i, vuln in enumerate(vulnerabilities[:20]):
+                        if pdf.get_y() > pdf.h - 40:  # Check if near bottom
+                            pdf.add_page()
+                        
+                        pdf.set_font('Arial', 'B', 9)
+                        pdf.cell(0, 6, f"{i+1}. {vuln.get('VulnerabilityID', 'N/A')} ({vuln.get('Severity', 'N/A')})", 0, 1)
+                        
+                        pdf.set_font('Arial', '', 8)
+                        pdf.multi_cell(0, 4, f"Package: {vuln.get('PkgName', 'N/A')} ({vuln.get('InstalledVersion', 'N/A')})")
+                        
+                        title = vuln.get('Title', '')
+                        if title:
+                            pdf.multi_cell(0, 4, f"Title: {title[:100]}{'...' if len(title) > 100 else ''}")
+                        
+                        pdf.ln(2)
+                    
+                    if len(vulnerabilities) > 20:
+                        pdf.ln(3)
+                        pdf.set_font('Arial', 'I', 9)
+                        pdf.cell(0, 5, f'Showing 20 of {len(vulnerabilities)} vulnerabilities. See CSV/JSON for complete list.', 0, 1)
             
             # Save the PDF
             pdf.output(output_file)
@@ -573,6 +613,7 @@ class DockerSecurityScanner:
         except Exception as e:
             print(f"Error saving results to PDF file: {e}")
             return ""
+        
     def generate_all_reports(self, results: Dict) -> Dict:
         """
         Generate all report formats (JSON, CSV, PDF) from scan results.
@@ -605,6 +646,7 @@ class DockerSecurityScanner:
             report_paths['pdf'] = pdf_path
         
         return report_paths
+    
     def get_security_score(self, results: Dict) -> float:
         """
         Calculate the security score based on scan results.

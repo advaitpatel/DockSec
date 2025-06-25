@@ -1,8 +1,9 @@
 from setuptools import setup
+import os
 
 setup(
     name="docksec",
-    version="0.0.5",
+    version="0.0.14",
     description="AI-Powered Docker Security Analyzer",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -37,4 +38,12 @@ setup(
         "Operating System :: OS Independent",
     ],
     include_package_data=True,
+    # Ensure all Python files and templates are included in the distribution
+    package_data={
+        '': ['*.py', 'templates/*.html', 'templates/**/*.html'],
+    },
+    # Alternative way to include data files
+    data_files=[
+        ('templates', ['templates/' + f for f in os.listdir('templates') if f.endswith('.html')])
+    ] if os.path.exists('templates') else [],
 )

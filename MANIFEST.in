@@ -3,4 +3,5 @@ include README.md
 include requirements.txt
 include .env.example
 recursive-include testfiles *
+recursive-include templates *
 global-exclude *.py[cod] __pycache__ *.so .DS_Store

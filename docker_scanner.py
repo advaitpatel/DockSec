@@ -679,15 +679,17 @@ class DockerSecurityScanner:
             Path to the saved HTML file
         """
         output_file = os.path.join(self.RESULTS_DIR, f"{re.sub(r'[:/.\-]', '_', self.image_name)}_security_report.html")
-        template_path = os.path.join(os.path.dirname(__file__), 'templates', 'report_template.html')
-        
+        # template_path = os.path.join(os.path.dirname(__file__), 'templates', 'report_template.html')
+        template_path = os.path.join(os.path.dirname(__file__), 'report_template.html')
+
         try:
-            # Read the HTML template
-            if not os.path.exists(template_path):
-                raise FileNotFoundError(f"HTML template not found at {template_path}")
-            
-            with open(template_path, 'r', encoding='utf-8') as f:
-                html_template = f.read()
+            # # Read the HTML template
+            # if not os.path.exists(template_path):
+            #     raise FileNotFoundError(f"HTML template not found at {template_path}")
+            #
+            # with open(template_path, 'r', encoding='utf-8') as f:
+            #     html_template = f.read()
+            from config import html_template
             
             # Prepare template variables
             template_vars = self._prepare_html_template_vars(results)

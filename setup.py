@@ -1,9 +1,9 @@
 from setuptools import setup
 import os
-
+import glob
 setup(
     name="docksec",
-    version="0.0.14",
+    version="0.0.17",
     description="AI-Powered Docker Security Analyzer",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -26,6 +26,7 @@ setup(
         "langchain-openai",
         "python-dotenv",
         "pandas",
+        
         "tqdm",
         "colorama",
         "rich",
@@ -42,8 +43,4 @@ setup(
     package_data={
         '': ['*.py', 'templates/*.html', 'templates/**/*.html'],
     },
-    # Alternative way to include data files
-    data_files=[
-        ('templates', ['templates/' + f for f in os.listdir('templates') if f.endswith('.html')])
-    ] if os.path.exists('templates') else [],
 )

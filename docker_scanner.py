@@ -363,7 +363,8 @@ class DockerSecurityScanner:
             "scan_info": {
                 "image": self.image_name,
                 "dockerfile": self.dockerfile_path,
-                "scan_time": results.get('timestamp', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                "scan_time": results.get('timestamp', datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+                "analysis score": self.analysis_score
             },
             "vulnerabilities": json_results
         }
@@ -470,6 +471,7 @@ class DockerSecurityScanner:
             pdf.multi_cell_with_title('Scan Mode:', scan_mode.replace('_', ' ').title())
             pdf.multi_cell_with_title('Dockerfile:', results.get('dockerfile_path', 'N/A'))
             pdf.multi_cell_with_title('Scan Date:', results.get('timestamp', ''))
+            pdf.multi_cell_with_title('Analysis Score:', str(self.analysis_score))
             pdf.ln(5)
             
             # Add image information if available (for extended scans)
@@ -624,13 +626,16 @@ class DockerSecurityScanner:
         Returns:
             Dictionary with paths to the generated reports
         """
+        self.analysis_score = self.get_security_score(results)
+
         report_paths = {
             'json': '',
             'csv': '',
             'pdf': '',
             'html': ''
         }
-        
+        print("IMAGE SCANNING RESULTS BEFORE SAVING: ", results)
+
         # Save to JSON
         json_path = self.save_results_to_json(results)
         if json_path:
@@ -730,6 +735,7 @@ class DockerSecurityScanner:
             'SCAN_MODE_TITLE': f"{scan_mode.replace('_', ' ').title()} Scan",
             'DOCKERFILE_PATH': results.get('dockerfile_path', 'N/A'),
             'SCAN_DATE': results.get('timestamp', ''),
+            'ANALYSIS_SCORE': self.analysis_score
         }
         
         # Security Score Section
@@ -967,7 +973,6 @@ def main():
         
         # Calculate security score
         score = scanner.get_security_score(results)
-
         print_section("Security Score", [f"Score: {score}"], "yellow")
 
         # Save results to file

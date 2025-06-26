@@ -523,6 +523,10 @@ html_template = """
                         <div class="info-label">Scan Date</div>
                         <div class="info-value">{{SCAN_DATE}}</div>
                     </div>
+                    <div class="info-item">
+                        <div class="info-label">Analysis Score</div>
+                        <div class="info-value">{{ANALYSIS_SCORE}}</div>
+                    </div>
                 </div>
             </div>
 

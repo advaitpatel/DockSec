@@ -38,7 +38,9 @@ os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
-RESULTS_DIR = os.path.join(BASE_DIR, "results")
+# RESULTS_DIR = os.path.join(BASE_DIR, "results")
+print("CURRENT WORKING DIRECTORY IS: ", os.getcwd())
+RESULTS_DIR = os.path.join(os.getcwd(), "results")
 
 os.makedirs(os.path.dirname(RESULTS_DIR), exist_ok=True)
 

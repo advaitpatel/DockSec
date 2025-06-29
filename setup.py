@@ -1,8 +1,9 @@
 from setuptools import setup
-
+import os
+import glob
 setup(
     name="docksec",
-    version="0.0.5",
+    version="0.0.18",
     description="AI-Powered Docker Security Analyzer",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -25,6 +26,7 @@ setup(
         "langchain-openai",
         "python-dotenv",
         "pandas",
+        
         "tqdm",
         "colorama",
         "rich",
@@ -37,4 +39,8 @@ setup(
         "Operating System :: OS Independent",
     ],
     include_package_data=True,
+    # Ensure all Python files and templates are included in the distribution
+    package_data={
+        '': ['*.py', 'templates/*.html', 'templates/**/*.html'],
+    },
 )

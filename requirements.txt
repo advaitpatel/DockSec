@@ -1,13 +1,18 @@
-pydantic
-langchain-core
-langchain
-langchain-openai
-python-dotenv
-pandas
+# Core dependencies
+pydantic>=2.0.0,<3.0.0
+langchain-core>=0.3.0,<2.0.0
+langchain>=0.3.0,<2.0.0
+langchain-openai>=0.2.0,<1.0.0
+python-dotenv>=1.0.0,<2.0.0
+pandas>=2.0.0,<3.0.0
 
-tqdm
-colorama
-rich
+# UI and progress
+tqdm>=4.65.0,<5.0.0
+colorama>=0.4.6,<1.0.0
+rich>=13.0.0,<14.0.0
 
-fpdf
-setuptools
+# PDF generation
+fpdf2>=2.7.0,<3.0.0
+
+# Build tools
+setuptools>=65.0.0

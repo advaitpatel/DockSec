@@ -42,6 +42,8 @@ jobs:
     - name: Install package in development mode
       run: |
         pip install -e .
+        # Ensure all dependencies are installed (including from setup.py)
+        pip install -r requirements.txt
     
     - name: Run Hadolint on Dockerfiles
       run: |

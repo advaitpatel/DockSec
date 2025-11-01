@@ -50,7 +50,7 @@ os.makedirs(os.path.dirname(RESULTS_DIR), exist_ok=True)
 
 
 
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 docker_agent_template = """
     you are an AI agent that is tasked with analyzing a Dockerfile for security vulnerabilities.

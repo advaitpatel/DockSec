@@ -6,7 +6,17 @@ from config import (
     BASE_DIR,
     OPENAI_API_KEY
 )
-from langchain_core.pydantic_v1 import BaseModel, Field
+try:
+    from langchain_core.pydantic_v1 import BaseModel, Field
+except ImportError:
+    # Fallback to standard pydantic if langchain_core.pydantic_v1 is not available
+    try:
+        from pydantic import BaseModel, Field
+    except ImportError:
+        raise ImportError(
+            "Either 'pydantic' or 'langchain-core' must be installed. "
+            "Install with: pip install pydantic langchain-core"
+        )
 from typing import List
 import time
 from tqdm import tqdm

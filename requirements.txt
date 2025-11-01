@@ -1,3 +1,4 @@
+pydantic
 langchain-core
 langchain
 langchain-openai

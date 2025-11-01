@@ -4,7 +4,7 @@ from utils import (
     load_docker_file,
     get_llm,
     analyze_security,
-    AnalsesResponse,
+    AnalyzesResponse,
     ScoreResponse
 )
 from config import docker_agent_prompt, docker_score_prompt
@@ -14,7 +14,7 @@ from pathlib import Path
 logger = get_custom_logger(name=__name__)
 
 llm = get_llm()
-Report_llm = llm.with_structured_output(AnalsesResponse, method = "json_mode")
+Report_llm = llm.with_structured_output(AnalyzesResponse, method = "json_mode")
 analyser_chain = docker_agent_prompt | Report_llm
 
 
@@ -24,7 +24,7 @@ analyser_chain = docker_agent_prompt | Report_llm
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze Dockerfile security risks")
-    parser.add_argument("docker_file_path", nargs="?", default=r"testfiles\1\Dockerfile", help="Path to the Dockerfile")
+    parser.add_argument("docker_file_path", nargs="?", default=os.path.join("testfiles", "1", "Dockerfile"), help="Path to the Dockerfile")
     args = parser.parse_args()
     filecontent = load_docker_file(docker_file_path=Path(args.docker_file_path))
 

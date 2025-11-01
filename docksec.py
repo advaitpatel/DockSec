@@ -76,7 +76,7 @@ def main():
                 load_docker_file,
                 get_llm,
                 analyze_security,
-                AnalsesResponse,
+                AnalyzesResponse,
                 ScoreResponse
             )
             from config import docker_agent_prompt, docker_score_prompt
@@ -85,7 +85,7 @@ def main():
             # Set up the same components as main.py
             logger = get_custom_logger(name='docksec_ai')
             llm = get_llm()
-            Report_llm = llm.with_structured_output(AnalsesResponse, method="json_mode")
+            Report_llm = llm.with_structured_output(AnalyzesResponse, method="json_mode")
             analyser_chain = docker_agent_prompt | Report_llm
             
             # Load and analyze the Dockerfile

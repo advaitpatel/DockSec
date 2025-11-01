@@ -40,7 +40,7 @@ def load_docker_file(docker_file_path: str = None):
         return None
     return docker_file
 
-class AnalsesResponse(BaseModel ):
+class AnalyzesResponse(BaseModel):
     vulnerabilities: List[str] = Field(description="List of vulnerabilities found in the Dockerfile")
     best_practices: List[str] = Field(description="Best practices to follow to mitigate these vulnerabilities")
     SecurityRisks: List[str] = Field(description= "security risks associated with Dockerfile")
@@ -51,8 +51,13 @@ class ScoreResponse(BaseModel):
     score: float = Field(description="Security score for the Dockerfile")
 
 def get_llm():
+    """Get LLM instance, checking for API key only when AI features are needed."""
+    from config import get_openai_api_key
+    # Check API key only when LLM is actually needed
+    api_key = get_openai_api_key()
+    if not os.getenv("OPENAI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = api_key
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
-    # structure_llm = llm.with_structured_output(AnalsesResponse, method = "json_mode")
     return llm
 
 

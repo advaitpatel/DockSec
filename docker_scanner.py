@@ -8,11 +8,95 @@ from datetime import datetime
 from fpdf import FPDF
 import sys
 import re
+import shlex
+from pathlib import Path
 from config import RESULTS_DIR
 from config import docker_score_prompt
 from utils import ScoreResponse, get_llm, print_section
 
 class DockerSecurityScanner:
+    @staticmethod
+    def _validate_file_path(file_path: str) -> Path:
+        """
+        Validate and sanitize file path to prevent path traversal attacks.
+        
+        Args:
+            file_path: Path to validate
+            
+        Returns:
+            Path object if valid
+            
+        Raises:
+            ValueError: If path is invalid or contains path traversal attempts
+        """
+        if not file_path:
+            raise ValueError("File path cannot be empty")
+        
+        try:
+            path = Path(file_path).resolve()
+            # Check for path traversal (parent directory access)
+            if '..' in str(path):
+                raise ValueError(f"Invalid path: path traversal detected in '{file_path}'")
+            return path
+        except (OSError, ValueError) as e:
+            raise ValueError(f"Invalid file path '{file_path}': {str(e)}")
+    
+    @staticmethod
+    def _validate_image_name(image_name: str) -> str:
+        """
+        Validate Docker image name format.
+        
+        Args:
+            image_name: Docker image name to validate
+            
+        Returns:
+            Sanitized image name
+            
+        Raises:
+            ValueError: If image name is invalid
+        """
+        if not image_name:
+            raise ValueError("Image name cannot be empty")
+        
+        # Basic validation - image names should be alphanumeric with :, /, -, _, .
+        # More lenient than strict Docker validation, but prevents obvious injection
+        if len(image_name) > 512:  # Docker image name max length
+            raise ValueError(f"Image name too long (max 512 characters): {len(image_name)}")
+        
+        # Check for dangerous characters that could be used in command injection
+        dangerous_chars = [';', '&', '|', '`', '$', '(', ')', '<', '>', '\n', '\r']
+        for char in dangerous_chars:
+            if char in image_name:
+                raise ValueError(f"Image name contains invalid character: '{char}'")
+        
+        return image_name.strip()
+    
+    @staticmethod
+    def _validate_severity(severity: str) -> str:
+        """
+        Validate severity string for Trivy.
+        
+        Args:
+            severity: Comma-separated severity levels
+            
+        Returns:
+            Validated severity string
+            
+        Raises:
+            ValueError: If severity contains invalid values
+        """
+        if not severity:
+            raise ValueError("Severity cannot be empty")
+        
+        valid_severities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']
+        severity_list = [s.strip().upper() for s in severity.split(',')]
+        
+        for sev in severity_list:
+            if sev not in valid_severities:
+                raise ValueError(f"Invalid severity level: {sev}. Valid values: {', '.join(valid_severities)}")
+        
+        return ','.join(severity_list)
+    
     def __init__(self, dockerfile_path: str, image_name: str, results_dir: str = RESULTS_DIR):
         """
         Initialize the Docker Security Scanner with a Dockerfile path and image name.
@@ -26,14 +110,20 @@ class DockerSecurityScanner:
         Raises:
             ValueError: If required tools are missing or specified files don't exist
         """
-        self.dockerfile_path = dockerfile_path
-        self.image_name = image_name
+        # Validate and sanitize inputs
+        self.image_name = self._validate_image_name(image_name)
+        if dockerfile_path:
+            validated_path = self._validate_file_path(dockerfile_path)
+            self.dockerfile_path = str(validated_path)
+        else:
+            self.dockerfile_path = None
         # self.required_tools = ['docker', 'hadolint', 'trivy']
         self.required_tools = ['docker', 'trivy']
         if dockerfile_path:
             self.required_tools.append('hadolint')
         
         self.RESULTS_DIR = results_dir
+        self.analysis_score = None  # Initialize to avoid AttributeError when accessed before calculation
         llm = get_llm()
         self.score_chain = docker_score_prompt | llm.with_structured_output(ScoreResponse, method="json_mode")
         
@@ -46,17 +136,19 @@ class DockerSecurityScanner:
         if missing_tools:
             raise ValueError(f"Missing required tools: {', '.join(missing_tools)}")
         
-        # Verify Dockerfile exists
-        if dockerfile_path and not os.path.exists(dockerfile_path):
-            raise ValueError(f"Dockerfile not found at {dockerfile_path}")
+        # Verify Dockerfile exists (after validation)
+        if self.dockerfile_path and not os.path.exists(self.dockerfile_path):
+            raise ValueError(f"Dockerfile not found at {self.dockerfile_path}")
         
-        # Verify Docker image exists
+        # Verify Docker image exists (using validated image_name)
         try:
             result = subprocess.run(
-                ['docker', 'image', 'inspect', image_name],
+                ['docker', 'image', 'inspect', self.image_name],
                 capture_output=True,
                 check=True,
-                text=True
+                text=True,
+                timeout=30,
+                shell=False  # Explicitly disable shell for security
             )
         except subprocess.CalledProcessError as e:
             # Check if the error is due to permission issues
@@ -71,7 +163,7 @@ class DockerSecurityScanner:
                     f"Original error: {e.stderr.strip() if e.stderr else str(e)}"
                 )
             # If it's not a permission error, assume the image doesn't exist
-            raise ValueError(f"Docker image '{image_name}' not found locally")
+            raise ValueError(f"Docker image '{self.image_name}' not found locally")
         except FileNotFoundError:
             raise ValueError(
                 "Docker command not found. Please ensure Docker is installed and accessible in your PATH."
@@ -86,6 +178,8 @@ class DockerSecurityScanner:
         Returns:
             Dictionary containing scan results
         """
+        # Validate severity input
+        severity = self._validate_severity(severity)
         print(f"\n=== Starting image-only scan for {self.image_name} ===")
         
         results = {
@@ -132,8 +226,14 @@ class DockerSecurityScanner:
         
         for tool in self.required_tools:
             try:
-                subprocess.run([tool, '--version'], capture_output=True, check=True)
-            except (subprocess.CalledProcessError, FileNotFoundError):
+                subprocess.run(
+                    [tool, '--version'],
+                    capture_output=True,
+                    check=True,
+                    timeout=10,
+                    shell=False
+                )
+            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
                 missing_tools.append(tool)
         
         return missing_tools
@@ -152,7 +252,9 @@ class DockerSecurityScanner:
             result = subprocess.run(
                 ['hadolint', self.dockerfile_path],
                 capture_output=True,
-                text=True
+                text=True,
+                timeout=300,
+                shell=False
             )
             
             if result.returncode != 0:
@@ -217,6 +319,8 @@ class DockerSecurityScanner:
                 - bool: True if scan completed successfully, False otherwise
                 - Optional[List[Dict]]: Filtered vulnerability data or None if scan failed
         """
+        # Validate severity input
+        severity = self._validate_severity(severity)
         print("\n=== Starting vulnerability scan with Trivy for Json Output ===")
         
         try:
@@ -232,7 +336,9 @@ class DockerSecurityScanner:
                 ],
                 capture_output=True,
                 text=True,
-                encoding='utf-8'
+                encoding='utf-8',
+                timeout=600,
+                shell=False
             )
             
             if result.stderr:
@@ -249,6 +355,9 @@ class DockerSecurityScanner:
                 
             return True, filtered_results
             
+        except subprocess.TimeoutExpired:
+            print(f"Error: Trivy scan timed out after 600 seconds")
+            return False, None
         except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
             print(f"Error running Trivy scan: {e}")
             return False, None
@@ -265,6 +374,8 @@ class DockerSecurityScanner:
                 - bool: True if no vulnerabilities found, False otherwise
                 - Optional[str]: Output from the scan or None if failed
         """
+        # Validate severity input
+        severity = self._validate_severity(severity)
         print("\n=== Starting vulnerability scan with Trivy ===")
         
         try:
@@ -278,7 +389,9 @@ class DockerSecurityScanner:
                 ],
                 capture_output=True,
                 text=True,
-                encoding='utf-8'
+                encoding='utf-8',
+                timeout=600,
+                shell=False
             )
             
             print("Scan completed.")
@@ -292,23 +405,50 @@ class DockerSecurityScanner:
             # Trivy returns 0 if no vulnerabilities are found with the specified severity
             return result.returncode == 0, result.stdout
             
+        except subprocess.TimeoutExpired:
+            print(f"Error: Trivy scan timed out after 600 seconds")
+            return False, "Scan timed out"
         except subprocess.CalledProcessError as e:
             print(f"Error running Trivy scan: {e}")
             return False, str(e)
 
     def advanced_scan(self) -> Dict:
-
+        """
+        Run advanced Docker Scout scan.
+        
+        Returns:
+            Dict containing scan results, or empty dict if scan failed
+        """
+        result_dict = {
+            'success': False,
+            'output': None,
+            'error': None
+        }
+        
         try:
             # Running Docker Scout quick scan
             result = subprocess.run(
                 ["docker", "scout", "quickview", self.image_name], 
-                capture_output=True, text=True, check=True
+                capture_output=True, text=True, check=True, timeout=300, shell=False
             )
             print(f"Scan results for {self.image_name}:\n")
             print(result.stdout)
+            result_dict['success'] = True
+            result_dict['output'] = result.stdout
         except subprocess.CalledProcessError as e:
-            print(f"Error running Docker Scout: {e.stderr}")
-            return 0
+            error_msg = e.stderr if e.stderr else str(e)
+            print(f"Error running Docker Scout: {error_msg}")
+            result_dict['error'] = error_msg
+        except subprocess.TimeoutExpired:
+            error_msg = "Docker Scout scan timed out after 300 seconds"
+            print(f"Error: {error_msg}")
+            result_dict['error'] = error_msg
+        except FileNotFoundError:
+            error_msg = "Docker Scout not found. Please install Docker Scout to use advanced scanning."
+            print(f"Error: {error_msg}")
+            result_dict['error'] = error_msg
+        
+        return result_dict
     def run_full_scan(self, severity: str = "CRITICAL,HIGH") -> Dict:
         """
         Run all security scans and return results.
@@ -319,6 +459,8 @@ class DockerSecurityScanner:
         Returns:
             Dictionary containing scan results
         """
+        # Validate severity input
+        severity = self._validate_severity(severity)
         scan_status = True
         results = {
             'dockerfile_scan': {
@@ -657,7 +799,6 @@ class DockerSecurityScanner:
             'pdf': '',
             'html': ''
         }
-        print("IMAGE SCANNING RESULTS BEFORE SAVING: ", results)
 
         # Save to JSON
         json_path = self.save_results_to_json(results)

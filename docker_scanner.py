@@ -52,13 +52,30 @@ class DockerSecurityScanner:
         
         # Verify Docker image exists
         try:
-            subprocess.run(
-                ['sudo','docker', 'image', 'inspect', image_name],
+            result = subprocess.run(
+                ['docker', 'image', 'inspect', image_name],
                 capture_output=True,
-                check=True
+                check=True,
+                text=True
             )
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
+            # Check if the error is due to permission issues
+            error_output = e.stderr.lower() if e.stderr else ""
+            if "permission denied" in error_output or "cannot connect to the docker daemon" in error_output:
+                raise ValueError(
+                    f"Unable to access Docker. This may require elevated permissions.\n"
+                    f"Possible solutions:\n"
+                    f"  1. Add your user to the docker group: sudo usermod -aG docker $USER (then log out and back in)\n"
+                    f"  2. Ensure Docker daemon is running: sudo systemctl start docker (Linux) or start Docker Desktop\n"
+                    f"  3. If you must use sudo, run DockSec with sudo (not recommended for security reasons)\n"
+                    f"Original error: {e.stderr.strip() if e.stderr else str(e)}"
+                )
+            # If it's not a permission error, assume the image doesn't exist
             raise ValueError(f"Docker image '{image_name}' not found locally")
+        except FileNotFoundError:
+            raise ValueError(
+                "Docker command not found. Please ensure Docker is installed and accessible in your PATH."
+            )
     def run_image_only_scan(self, severity: str = "CRITICAL,HIGH") -> Dict:
         """
         Run image-only security scan without Dockerfile analysis.
@@ -356,7 +373,9 @@ class DockerSecurityScanner:
         Returns:
             Path to the saved JSON file
         """
-        output_file = os.path.join(self.RESULTS_DIR, f"{re.sub(r'[:/.\-]', '_', self.image_name)}_scan_results.json")
+        # Sanitize image name for filename (avoid backslash in f-string expression)
+        safe_image_name = re.sub(r'[:/.\-]', '_', self.image_name)
+        output_file = os.path.join(self.RESULTS_DIR, f"{safe_image_name}_scan_results.json")
 
         json_results = results.get('json_data', [])
         vulnerabilities = {
@@ -388,7 +407,9 @@ class DockerSecurityScanner:
         Returns:
             Path to the saved CSV file
         """
-        output_file = os.path.join(self.RESULTS_DIR, f"{re.sub(r'[:/.\-]', '_', self.image_name)}_vulnerabilities.csv")
+        # Sanitize image name for filename
+        safe_image_name = re.sub(r'[:/.\-]', '_', self.image_name)
+        output_file = os.path.join(self.RESULTS_DIR, f"{safe_image_name}_vulnerabilities.csv")
         
         vulnerabilities = results.get('json_data', [])
         if not vulnerabilities:
@@ -428,7 +449,9 @@ class DockerSecurityScanner:
         Returns:
             Path to the saved PDF file
         """
-        output_file = os.path.join(self.RESULTS_DIR, f"{re.sub(r'[:/.\-]', '_', self.image_name)}_security_report.pdf")
+        # Sanitize image name for filename
+        safe_image_name = re.sub(r'[:/.\-]', '_', self.image_name)
+        output_file = os.path.join(self.RESULTS_DIR, f"{safe_image_name}_security_report.pdf")
         
         try:
             # Create custom PDF class with text wrapping capability
@@ -683,7 +706,9 @@ class DockerSecurityScanner:
         Returns:
             Path to the saved HTML file
         """
-        output_file = os.path.join(self.RESULTS_DIR, f"{re.sub(r'[:/.\-]', '_', self.image_name)}_security_report.html")
+        # Sanitize image name for filename
+        safe_image_name = re.sub(r'[:/.\-]', '_', self.image_name)
+        output_file = os.path.join(self.RESULTS_DIR, f"{safe_image_name}_security_report.html")
         # template_path = os.path.join(os.path.dirname(__file__), 'templates', 'report_template.html')
         template_path = os.path.join(os.path.dirname(__file__), 'report_template.html')
 

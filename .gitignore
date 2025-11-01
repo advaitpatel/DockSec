@@ -179,4 +179,10 @@ results/
 # Private code review and improvement tracking (not for public repository)
 CODE_REVIEW_AND_IMPROVEMENTS.md
 
+# Testing scripts and guides (for development/internal use only)
+test_e2e.py
+E2E_TEST_README.md
+CLI_TESTING_GUIDE.md
+*TEST*.md
+
 

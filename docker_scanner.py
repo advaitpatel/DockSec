@@ -67,6 +67,10 @@ class DockerSecurityScanner:
         if len(image_name) > 512:  # Docker image name max length
             raise ValueError(f"Image name too long (max 512 characters): {len(image_name)}")
         
+        # Check for path traversal attempts
+        if '..' in image_name or image_name.startswith('/'):
+            raise ValueError(f"Image name contains path traversal or absolute path: '{image_name}'")
+        
         # Check for dangerous characters that could be used in command injection
         dangerous_chars = [';', '&', '|', '`', '$', '(', ')', '<', '>', '\n', '\r']
         for char in dangerous_chars:

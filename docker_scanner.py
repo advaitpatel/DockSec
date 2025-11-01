@@ -3,6 +3,7 @@ import json
 import subprocess
 import csv
 import pandas as pd
+import logging
 from typing import List, Tuple, Dict, Optional
 from datetime import datetime
 from fpdf import FPDF
@@ -12,7 +13,10 @@ import shlex
 from pathlib import Path
 from config import RESULTS_DIR
 from config import docker_score_prompt
-from utils import ScoreResponse, get_llm, print_section
+from utils import ScoreResponse, get_llm, print_section, get_custom_logger
+
+# Initialize logger
+logger = get_custom_logger(__name__)
 
 class DockerSecurityScanner:
     @staticmethod
@@ -134,7 +138,11 @@ class DockerSecurityScanner:
         # Verify required tools
         missing_tools = self._check_tools()
         if missing_tools:
-            raise ValueError(f"Missing required tools: {', '.join(missing_tools)}")
+            error_msg = f"Missing required tools: {', '.join(missing_tools)}\n\n"
+            error_msg += "Installation instructions:\n"
+            for tool in missing_tools:
+                error_msg += f"\n{tool.upper()}:\n{self._get_tool_installation_instructions(tool)}\n"
+            raise ValueError(error_msg)
         
         # Verify Dockerfile exists (after validation)
         if self.dockerfile_path and not os.path.exists(self.dockerfile_path):
@@ -180,6 +188,7 @@ class DockerSecurityScanner:
         """
         # Validate severity input
         severity = self._validate_severity(severity)
+        logger.info(f"Starting image-only scan for {self.image_name}")
         print(f"\n=== Starting image-only scan for {self.image_name} ===")
         
         results = {
@@ -237,6 +246,31 @@ class DockerSecurityScanner:
                 missing_tools.append(tool)
         
         return missing_tools
+    
+    def _get_tool_installation_instructions(self, tool: str) -> str:
+        """Get installation instructions for a missing tool."""
+        instructions = {
+            'docker': (
+                "Docker is required for image scanning. Please install Docker:\n"
+                "  - Linux: https://docs.docker.com/engine/install/\n"
+                "  - macOS: https://docs.docker.com/desktop/install/mac-install/\n"
+                "  - Windows: https://docs.docker.com/desktop/install/windows-install/"
+            ),
+            'trivy': (
+                "Trivy is required for vulnerability scanning. Install it:\n"
+                "  - Linux/Mac: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin\n"
+                "  - Windows: See https://aquasecurity.github.io/trivy/latest/getting-started/installation/\n"
+                "  - Or run: python setup_external_tools.py"
+            ),
+            'hadolint': (
+                "Hadolint is required for Dockerfile linting. Install it:\n"
+                "  - Linux: curl -L -o hadolint https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64 && chmod +x hadolint && sudo mv hadolint /usr/local/bin/\n"
+                "  - macOS: brew install hadolint\n"
+                "  - Windows: See https://github.com/hadolint/hadolint#install\n"
+                "  - Or run: python setup_external_tools.py"
+            )
+        }
+        return instructions.get(tool, f"Please install {tool} from its official documentation.")
 
     def scan_dockerfile(self) -> Tuple[bool, Optional[str]]:
         """
@@ -247,6 +281,7 @@ class DockerSecurityScanner:
                 - bool: True if no issues found, False otherwise
                 - Optional[str]: Output from the scan or None if successful
         """
+        logger.info(f"Starting Dockerfile scan with Hadolint: {self.dockerfile_path}")
         print("\n=== Starting Dockerfile scan with Hadolint ===")
         try:
             result = subprocess.run(
@@ -259,15 +294,24 @@ class DockerSecurityScanner:
             
             if result.returncode != 0:
                 output = result.stdout if result.stdout else result.stderr
+                logger.warning(f"Hadolint found issues in {self.dockerfile_path}")
                 print("Dockerfile linting issues found:")
                 print(output)
                 return False, output
             else:
+                logger.info("No Dockerfile linting issues found.")
                 print("No Dockerfile linting issues found.")
                 return True, None
                 
         except subprocess.CalledProcessError as e:
+            logger.error(f"Error running Hadolint: {e}", exc_info=True)
             print(f"Error running Hadolint: {e}")
+            return False, str(e)
+        except subprocess.TimeoutExpired:
+            logger.error(f"Hadolint scan timed out after 300 seconds for {self.dockerfile_path}")
+            return False, "Scan timeout"
+        except Exception as e:
+            logger.error(f"Unexpected error during Hadolint scan: {e}", exc_info=True)
             return False, str(e)
     
     def _filter_scan_results(self, scan_results: Dict) -> List[Dict]:
@@ -321,6 +365,7 @@ class DockerSecurityScanner:
         """
         # Validate severity input
         severity = self._validate_severity(severity)
+        logger.info(f"Starting Trivy JSON scan for image: {self.image_name}")
         print("\n=== Starting vulnerability scan with Trivy for Json Output ===")
         
         try:
@@ -376,6 +421,7 @@ class DockerSecurityScanner:
         """
         # Validate severity input
         severity = self._validate_severity(severity)
+        logger.info(f"Starting Trivy scan for image: {self.image_name} with severity: {severity}")
         print("\n=== Starting vulnerability scan with Trivy ===")
         
         try:

@@ -22,6 +22,8 @@ setup(
     },
     python_requires=">=3.12",
     install_requires=[
+        "pydantic",
+        "langchain-core",
         "langchain",
         "langchain-openai",
         "python-dotenv",

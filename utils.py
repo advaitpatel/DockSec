@@ -6,7 +6,17 @@ from config import (
     BASE_DIR,
     OPENAI_API_KEY
 )
-from langchain_core.pydantic_v1 import BaseModel, Field
+try:
+    from langchain_core.pydantic_v1 import BaseModel, Field
+except ImportError:
+    # Fallback to standard pydantic if langchain_core.pydantic_v1 is not available
+    try:
+        from pydantic import BaseModel, Field
+    except ImportError:
+        raise ImportError(
+            "Either 'pydantic' or 'langchain-core' must be installed. "
+            "Install with: pip install pydantic langchain-core"
+        )
 from typing import List
 import time
 from tqdm import tqdm
@@ -40,7 +50,7 @@ def load_docker_file(docker_file_path: str = None):
         return None
     return docker_file
 
-class AnalsesResponse(BaseModel ):
+class AnalyzesResponse(BaseModel):
     vulnerabilities: List[str] = Field(description="List of vulnerabilities found in the Dockerfile")
     best_practices: List[str] = Field(description="Best practices to follow to mitigate these vulnerabilities")
     SecurityRisks: List[str] = Field(description= "security risks associated with Dockerfile")
@@ -51,8 +61,13 @@ class ScoreResponse(BaseModel):
     score: float = Field(description="Security score for the Dockerfile")
 
 def get_llm():
+    """Get LLM instance, checking for API key only when AI features are needed."""
+    from config import get_openai_api_key
+    # Check API key only when LLM is actually needed
+    api_key = get_openai_api_key()
+    if not os.getenv("OPENAI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = api_key
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
-    # structure_llm = llm.with_structured_output(AnalsesResponse, method = "json_mode")
     return llm
 
 

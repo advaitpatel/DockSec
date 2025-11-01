@@ -5,10 +5,12 @@ import os
 load_dotenv()
 
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-
-if not OPENAI_API_KEY:
-    error_message = """
+# Lazy-load API key to allow scan-only mode without API key
+def get_openai_api_key():
+    """Get OpenAI API key, raising error only when AI features are needed."""
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key:
+        error_message = """
 ❌ No OpenAI API Key provided.
 
 You can fix this by setting the `OPENAI_API_KEY` in one of the following ways:
@@ -26,27 +28,29 @@ You can fix this by setting the `OPENAI_API_KEY` in one of the following ways:
     OPENAI_API_KEY=your-secret-key
 
 
-🔒 Reminder: Never hardcode your API key in public code or repositories. it is necessary to use Docksec
+🔒 Reminder: Never hardcode your API key in public code or repositories. It is necessary to use DockSec AI features.
 
+Note: You can use scan-only mode (--scan-only) without an API key.
 """
-    raise EnvironmentError(error_message.strip())
-else:
-    print("✅ OpenAI API Key found in environment variables.")
+        raise EnvironmentError(error_message.strip())
+    return api_key
 
-
-os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+# Set environment variable if key exists (for backward compatibility)
+# But don't raise error if missing - let get_openai_api_key() handle that
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+if OPENAI_API_KEY:
+    os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 # RESULTS_DIR = os.path.join(BASE_DIR, "results")
-print("CURRENT WORKING DIRECTORY IS: ", os.getcwd())
 RESULTS_DIR = os.path.join(os.getcwd(), "results")
 
 os.makedirs(os.path.dirname(RESULTS_DIR), exist_ok=True)
 
 
 
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 docker_agent_template = """
     you are an AI agent that is tasked with analyzing a Dockerfile for security vulnerabilities.

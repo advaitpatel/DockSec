@@ -176,4 +176,7 @@ cython_debug/
 testfiles/1/Dockerfile
 results/
 
+# Private code review and improvement tracking (not for public repository)
+CODE_REVIEW_AND_IMPROVEMENTS.md
+
 

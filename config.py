@@ -1,34 +1,43 @@
 from dotenv import load_dotenv
 import os
+from typing import Optional
 
 
 load_dotenv()
 
 
 # Lazy-load API key to allow scan-only mode without API key
-def get_openai_api_key():
-    """Get OpenAI API key, raising error only when AI features are needed."""
-    api_key = os.getenv("OPENAI_API_KEY", "")
+def get_openai_api_key() -> str:
+    """
+    Get OpenAI API key, raising error only when AI features are needed.
+    
+    Returns:
+        str: The OpenAI API key from environment variables
+        
+    Raises:
+        EnvironmentError: If OPENAI_API_KEY is not set
+    """
+    api_key: Optional[str] = os.getenv("OPENAI_API_KEY", "")
     if not api_key:
         error_message = """
-❌ No OpenAI API Key provided.
+[ERROR] No OpenAI API Key provided.
 
 You can fix this by setting the `OPENAI_API_KEY` in one of the following ways:
 
-🔹 PowerShell (Windows):
+- PowerShell (Windows):
     $env:OPENAI_API_KEY = "your-secret-key"
 
-🔹 Command Prompt (CMD on Windows):
+- Command Prompt (CMD on Windows):
     set OPENAI_API_KEY=your-secret-key
 
-🔹 Bash/Zsh (Linux/macOS):
+- Bash/Zsh (Linux/macOS):
     export OPENAI_API_KEY="your-secret-key"
 
-🔹 Or create a `.env` file with:
+- Or create a `.env` file with:
     OPENAI_API_KEY=your-secret-key
 
 
-🔒 Reminder: Never hardcode your API key in public code or repositories. It is necessary to use DockSec AI features.
+[SECURITY] Reminder: Never hardcode your API key in public code or repositories. It is necessary to use DockSec AI features.
 
 Note: You can use scan-only mode (--scan-only) without an API key.
 """
@@ -37,14 +46,14 @@ Note: You can use scan-only mode (--scan-only) without an API key.
 
 # Set environment variable if key exists (for backward compatibility)
 # But don't raise error if missing - let get_openai_api_key() handle that
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 if OPENAI_API_KEY:
     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+BASE_DIR: str = os.path.abspath(os.path.dirname(__file__))
 
 # RESULTS_DIR = os.path.join(BASE_DIR, "results")
-RESULTS_DIR = os.path.join(os.getcwd(), "results")
+RESULTS_DIR: str = os.path.join(os.getcwd(), "results")
 
 os.makedirs(os.path.dirname(RESULTS_DIR), exist_ok=True)
 
@@ -388,9 +397,9 @@ html_template = """
         }
         
         .no-issues::before {
-            content: '✓';
+            content: '[OK]';
             display: block;
-            font-size: 3em;
+            font-size: 2em;
             margin-bottom: 10px;
             color: #27ae60;
         }

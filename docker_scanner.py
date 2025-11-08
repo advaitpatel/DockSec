@@ -299,23 +299,45 @@ class DockerSecurityScanner:
             if result.returncode != 0:
                 output = result.stdout if result.stdout else result.stderr
                 logger.warning(f"Hadolint found issues in {self.dockerfile_path}")
-                print("Dockerfile linting issues found:")
+                print("[WARNING] Dockerfile linting issues found:")
                 print(output)
+                print("\n[TIP] Run 'hadolint --help' to learn about specific rules")
+                print("   You can ignore specific rules with: hadolint --ignore DL3000 Dockerfile")
                 return False, output
             else:
                 logger.info("No Dockerfile linting issues found.")
-                print("No Dockerfile linting issues found.")
+                print("[SUCCESS] No Dockerfile linting issues found.")
                 return True, None
                 
         except subprocess.CalledProcessError as e:
-            logger.error(f"Error running Hadolint: {e}", exc_info=True)
-            print(f"Error running Hadolint: {e}")
+            error_msg = f"Hadolint execution failed: {e}"
+            logger.error(error_msg, exc_info=True)
+            print(f"\n[ERROR] Error: {error_msg}")
+            print("\nTroubleshooting steps:")
+            print("  1. Verify Hadolint is installed: hadolint --version")
+            print("  2. Check file permissions on the Dockerfile")
+            print("  3. Ensure Dockerfile syntax is valid")
             return False, str(e)
         except subprocess.TimeoutExpired:
-            logger.error(f"Hadolint scan timed out after 300 seconds for {self.dockerfile_path}")
+            error_msg = f"Hadolint scan timed out after 300 seconds"
+            logger.error(f"{error_msg} for {self.dockerfile_path}")
+            print(f"\n[ERROR] Error: {error_msg}")
+            print("\nTroubleshooting steps:")
+            print("  1. The Dockerfile may be extremely large")
+            print("  2. Try splitting into smaller Dockerfiles")
+            print("  3. Check for infinite loops or circular dependencies")
             return False, "Scan timeout"
+        except FileNotFoundError:
+            error_msg = "Hadolint not found in PATH"
+            logger.error(error_msg)
+            print(f"\n[ERROR] Error: {error_msg}")
+            print("\nInstallation instructions:")
+            print(self._get_tool_installation_instructions('hadolint'))
+            return False, error_msg
         except Exception as e:
-            logger.error(f"Unexpected error during Hadolint scan: {e}", exc_info=True)
+            error_msg = f"Unexpected error during Hadolint scan: {e}"
+            logger.error(error_msg, exc_info=True)
+            print(f"\n[ERROR] Error: {error_msg}")
             return False, str(e)
     
     def _filter_scan_results(self, scan_results: Dict) -> List[Dict]:
@@ -367,48 +389,79 @@ class DockerSecurityScanner:
                 - bool: True if scan completed successfully, False otherwise
                 - Optional[List[Dict]]: Filtered vulnerability data or None if scan failed
         """
+        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+        
         # Validate severity input
         severity = self._validate_severity(severity)
         logger.info(f"Starting Trivy JSON scan for image: {self.image_name}")
         print("\n=== Starting vulnerability scan with Trivy for Json Output ===")
         
         try:
-            print(f"Scanning image: {self.image_name}")
-            result = subprocess.run(
-                [
-                    'trivy',
-                    'image',
-                    '-f', 'json',
-                    '--severity', severity,
-                    '--no-progress',
-                    self.image_name
-                ],
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                timeout=600,
-                shell=False
-            )
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TimeElapsedColumn(),
+                console=None  # Use default console
+            ) as progress:
+                scan_task = progress.add_task(
+                    f"[cyan]Scanning {self.image_name}...",
+                    total=None  # Indeterminate progress
+                )
+                
+                result = subprocess.run(
+                    [
+                        'trivy',
+                        'image',
+                        '-f', 'json',
+                        '--severity', severity,
+                        '--no-progress',
+                        self.image_name
+                    ],
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    timeout=600,
+                    shell=False
+                )
+                
+                progress.update(scan_task, completed=True)
             
             if result.stderr:
-                print("Errors:", result.stderr)
+                print("Scan warnings:", result.stderr)
             
             response = json.loads(result.stdout)
             filtered_results = self._filter_scan_results(response)
             
             # Check if vulnerabilities were found
             if not filtered_results:
-                print("No vulnerabilities found.")
+                print("[SUCCESS] No vulnerabilities found.")
             else:
-                print(f"Found {len(filtered_results)} vulnerabilities.")
+                print(f"[WARNING] Found {len(filtered_results)} vulnerabilities.")
                 
             return True, filtered_results
             
         except subprocess.TimeoutExpired:
-            print(f"Error: Trivy scan timed out after 600 seconds")
+            error_msg = f"Trivy scan timed out after 600 seconds"
+            logger.error(error_msg)
+            print(f"Error: {error_msg}")
+            print("\nTroubleshooting:")
+            print("  - The image may be very large. Consider increasing timeout.")
+            print("  - Check your network connection if pulling remote image data.")
+            print("  - Try scanning a specific image layer or component.")
             return False, None
-        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-            print(f"Error running Trivy scan: {e}")
+        except json.JSONDecodeError as e:
+            error_msg = f"Failed to parse Trivy output: {e}"
+            logger.error(error_msg)
+            print(f"Error: {error_msg}")
+            print("\nTroubleshooting:")
+            print("  - Ensure Trivy is up to date: trivy --version")
+            print("  - Check Trivy database: trivy image --download-db-only")
+            return False, None
+        except (subprocess.CalledProcessError, Exception) as e:
+            error_msg = f"Trivy scan failed: {e}"
+            logger.error(error_msg, exc_info=True)
+            print(f"Error: {error_msg}")
             return False, None
 
     def scan_image(self, severity: str = "CRITICAL,HIGH") -> Tuple[bool, Optional[str]]:
@@ -841,35 +894,57 @@ class DockerSecurityScanner:
         Returns:
             Dictionary with paths to the generated reports
         """
-        self.analysis_score = self.get_security_score(results)
+        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+        
+        print("\n=== Generating Reports ===")
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            console=None
+        ) as progress:
+            # Calculate security score
+            score_task = progress.add_task("[cyan]Calculating security score...", total=1)
+            self.analysis_score = self.get_security_score(results)
+            progress.update(score_task, advance=1)
 
-        report_paths = {
-            'json': '',
-            'csv': '',
-            'pdf': '',
-            'html': ''
-        }
+            report_paths = {
+                'json': '',
+                'csv': '',
+                'pdf': '',
+                'html': ''
+            }
 
-        # Save to JSON
-        json_path = self.save_results_to_json(results)
-        if json_path:
-            report_paths['json'] = json_path
-        
-        # Save to CSV
-        csv_path = self.save_results_to_csv(results)
-        if csv_path:
-            report_paths['csv'] = csv_path
-        
-        # Save to PDF
-        pdf_path = self.save_results_to_pdf(results)
-        if pdf_path:
-            report_paths['pdf'] = pdf_path
-        
-        # Save to html
-        html_path = self.save_results_to_html(results)
-        if html_path:
-            report_paths['html'] = html_path
+            # Save to JSON
+            json_task = progress.add_task("[cyan]Generating JSON report...", total=1)
+            json_path = self.save_results_to_json(results)
+            if json_path:
+                report_paths['json'] = json_path
+            progress.update(json_task, advance=1)
             
+            # Save to CSV
+            csv_task = progress.add_task("[cyan]Generating CSV report...", total=1)
+            csv_path = self.save_results_to_csv(results)
+            if csv_path:
+                report_paths['csv'] = csv_path
+            progress.update(csv_task, advance=1)
+            
+            # Save to PDF
+            pdf_task = progress.add_task("[cyan]Generating PDF report...", total=1)
+            pdf_path = self.save_results_to_pdf(results)
+            if pdf_path:
+                report_paths['pdf'] = pdf_path
+            progress.update(pdf_task, advance=1)
+            
+            # Save to HTML
+            html_task = progress.add_task("[cyan]Generating HTML report...", total=1)
+            html_path = self.save_results_to_html(results)
+            if html_path:
+                report_paths['html'] = html_path
+            progress.update(html_task, advance=1)
+        
+        print("\n[SUCCESS] All reports generated successfully!")
         return report_paths
     
     def get_security_score(self, results: Dict) -> float:

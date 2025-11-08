@@ -3,8 +3,13 @@
 import sys
 import os
 import argparse
+from typing import NoReturn, Optional
 
-def main():
+def main() -> None:
+    """
+    Main entry point for the DockSec CLI tool.
+    Parses arguments and coordinates AI analysis and security scanning.
+    """
     parser = argparse.ArgumentParser(description='Docker Security Analysis Tool')
     parser.add_argument('dockerfile', nargs='?', help='Path to the Dockerfile to analyze (optional when using --image-only)')
     parser.add_argument('-i', '--image', help='Docker image name to scan')

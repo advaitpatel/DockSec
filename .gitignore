@@ -184,5 +184,10 @@ test_e2e.py
 E2E_TEST_README.md
 CLI_TESTING_GUIDE.md
 *TEST*.md
+PRIORITY_2_IMPLEMENTATION_SUMMARY.md
+SESSION_SUMMARY.md
 
-
+# Cursor AI configuration files (local development settings)
+.cursorrules
+.cursorignore
+CURSOR_CONFIGURATION.md

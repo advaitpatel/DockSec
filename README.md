@@ -1,8 +1,10 @@
-[![GitHub Repo stars](https://img.shields.io/github/stars/docksec/docksec?style=flat)](https://github.com/advaitpatel/DockSec)
+[![GitHub Repo stars](https://img.shields.io/github/stars/advaitpatel/DockSec?style=flat)](https://github.com/advaitpatel/DockSec)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Docs](https://img.shields.io/badge/docs-docksec.dev%2Fdocs-blue)](https://github.com/advaitpatel/DockSec/blob/main/README.md)
-[![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/advaitpatel/DockSec/blob/main/CONTRIBUTING.md)
-[![Downloads](https://img.shields.io/github/downloads/docksec/socksec/total)](https://github.com/advaitpatel/DockSec/releases)
+[![PyPI version](https://badge.fury.io/py/docksec.svg)](https://badge.fury.io/py/docksec)
+[![Python Version](https://img.shields.io/pypi/pyversions/docksec.svg)](https://pypi.org/project/docksec/)
+[![CI Status](https://github.com/advaitpatel/DockSec/actions/workflows/python-app.yml/badge.svg)](https://github.com/advaitpatel/DockSec/actions)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/advaitpatel/DockSec/blob/main/CONTRIBUTING.md)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 <br>
 <div align="center">
@@ -16,9 +18,9 @@
   <p align="center">
     <a href="https://github.com/advaitpatel/DockSec" target="_blank">GitHub</a>
     🔹
-    <a href="#" target="_blank">Docker Hub</a>
+    <a href="https://pypi.org/project/docksec/" target="_blank">PyPI</a>
     🔹
-    <a href="https://pypi.org/project/docksec/" target="_blank">PyPI Hub</a>
+    <a href="#quick-start" target="_blank">Quick Start</a>
     🔹
     <a href="https://www.linkedin.com/in/advaitpatel93/" target="_blank">LinkedIn</a>
     🔹
@@ -26,6 +28,26 @@
   </p>
 </div>
 <hr>
+
+
+## 🚀 Quick Start
+
+Get started with DockSec in 3 simple steps:
+
+```bash
+# 1. Install DockSec
+pip install docksec
+
+# 2. Set your OpenAI API key (optional, for AI features)
+export OPENAI_API_KEY="your-api-key"
+
+# 3. Scan your Dockerfile
+docksec path/to/Dockerfile
+```
+
+That's it! DockSec will analyze your Dockerfile and provide actionable security recommendations. 🎉
+
+> **Note**: Scan-only mode works without an API key: `docksec path/to/Dockerfile --scan-only`
 
 
 ## 🔐 What is DockSec?
@@ -320,9 +342,48 @@ If you encounter issues:
    - Operating system
 
 
-## 🎬 Demo Video
+## 🎬 Examples & Screenshots
 
-[![DockSec Demo Video - Coming Soon](#)](#)
+### Example: Scanning a Vulnerable Dockerfile
+
+Check out our example Dockerfiles in the [`examples/`](examples/) directory:
+
+- **Secure Python App** - Best practices example (Score: 90+)
+- **Vulnerable Node App** - Common mistakes to avoid (Score: 30-)
+- **Multi-stage Golang** - Advanced optimization patterns (Score: 95+)
+
+```bash
+# Try scanning our example vulnerable Dockerfile
+git clone https://github.com/advaitpatel/DockSec.git
+cd DockSec/examples/dockerfiles/vulnerable-node-app
+docksec Dockerfile
+```
+
+**Sample Output:**
+```
+🔍 Scanning Dockerfile...
+⚠️  Security Score: 32/100
+
+Critical Issues (5):
+  • Hardcoded secrets detected
+  • Running as root user
+  • Using 'latest' tag
+
+High Issues (8):
+  • Outdated packages with CVEs
+  • Unnecessary packages installed
+  ...
+
+💡 AI Recommendations:
+  1. Remove hardcoded secrets and use environment variables
+  2. Create non-root user: RUN adduser -S appuser && USER appuser
+  3. Use specific version tags: FROM node:18-alpine
+  ...
+
+📊 Reports generated in: results/
+```
+
+For more examples and sample reports, see the [`examples/`](examples/) directory.
 
 
 ## ☝️ Need Help or Want to Provide Feedback?
@@ -334,7 +395,44 @@ We are happy to assist you with anything related to the project.
 
 ## 🤝 How to Contribute to DockSec
 
-Your feedback is invaluable to us as we continue to improve DockSec. If you'd like to contribute, consider trying out the beta version, reporting any issues, and sharing your suggestions. See [the contributing guide](CONTRIBUTING.md) for detailed instructions on how you can contribute.
+We welcome contributions from the community! Whether it's:
+
+- 🐛 Reporting bugs
+- 💡 Suggesting new features
+- 📝 Improving documentation
+- 🔧 Submitting pull requests
+
+See our [Contributing Guide](CONTRIBUTING.md) for detailed instructions.
+
+
+## 📚 Documentation
+
+- **[Quick Start Guide](#quick-start)** - Get started in 3 steps
+- **[Installation](#-installation)** - Detailed installation instructions
+- **[Usage Examples](#-how-to-use-docksec-cli)** - CLI usage and examples
+- **[Configuration](CONTRIBUTING.md#configuration)** - Environment variables and settings
+- **[Examples Directory](examples/)** - Sample Dockerfiles and use cases
+- **[Troubleshooting](#-troubleshooting)** - Common issues and solutions
+- **[Changelog](CHANGELOG.md)** - Version history and updates
+- **[Security Policy](SECURITY.md)** - Security guidelines and reporting
+
+
+## 🗺️ Roadmap
+
+### Coming Soon
+- [ ] Docker Compose support
+- [ ] Kubernetes manifest scanning
+- [ ] GitHub Actions integration
+- [ ] Custom rule engine
+- [ ] Web dashboard interface
+
+### Under Consideration
+- [ ] Support for additional LLM providers (Claude, Gemini)
+- [ ] SBOM generation
+- [ ] Container runtime monitoring
+- [ ] VSCode extension
+
+Vote on features or suggest new ones in [GitHub Discussions](https://github.com/advaitpatel/DockSec/discussions)!
 
 
 ## 👾 Activity

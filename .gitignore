@@ -191,3 +191,9 @@ SESSION_SUMMARY.md
 .cursorrules
 .cursorignore
 CURSOR_CONFIGURATION.md
+
+# Internal/maintainer documentation (not for public repository)
+PUBLISHING_GUIDE.md
+RELEASE_CHECKLIST.md
+IMPLEMENTATION_SUMMARY.md
+COMMIT_GUIDE.md

@@ -5,6 +5,79 @@ All notable changes to DockSec will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.20] - 2026-01-09
+
+### Added
+- 📚 **Comprehensive Documentation Suite**
+  - Complete CHANGELOG.md with full version history from v0.0.3 to present
+  - SECURITY.md with vulnerability reporting process and security best practices
+  - CONTRIBUTING.md with detailed contribution guidelines and development setup
+  - PUBLISHING_GUIDE.md for maintainers
+
+- 📁 **Complete Examples Directory**
+  - Secure Python Flask application example (Score: 90+) with best practices
+  - Vulnerable Node.js application example (Score: 30-) for educational purposes
+  - Multi-stage Golang build example (Score: 95+) with distroless base
+  - Detailed README for each example explaining security features
+  - Examples overview and learning path guide
+
+- 🎫 **GitHub Templates**
+  - Bug report issue template with structured format
+  - Feature request issue template with use case analysis
+  - Question issue template for community support
+  - Pull request template with comprehensive checklist
+
+- 📖 **README Enhancements**
+  - Quick Start section with 3-step getting started guide
+  - Examples & Screenshots section with sample output
+  - Documentation section linking to all major docs
+  - Roadmap section showing upcoming features
+  - Code quality badges (PyPI version, Python version, CI status, Code style)
+
+### Fixed
+- 🔗 **Broken Links and References**
+  - Fixed GitHub stars badge URL (docksec/docksec → advaitpatel/DockSec)
+  - Removed placeholder Docker Hub link
+  - Fixed CONTRIBUTING.md reference (file now exists)
+  - Replaced "Coming Soon" demo video section with actual examples
+
+- 🎨 **Badge Updates**
+  - Corrected repository URLs in all badges
+  - Added PyPI version badge
+  - Added Python version support badge
+  - Added CI/CD status badge
+  - Added code style (black) badge
+
+### Improved
+- 📝 **Documentation Quality**
+  - Better README structure and navigation
+  - More professional appearance for open source promotion
+  - Clear learning paths and getting started guides
+  - Comprehensive troubleshooting section
+  - Security-first documentation approach
+
+- 🏗️ **Repository Structure**
+  - Professional GitHub presence with all templates
+  - Clear contribution workflow
+  - Security policy for vulnerability reports
+  - Examples demonstrating best practices
+
+### Developer Experience
+- Complete development environment setup guide
+- Code style and testing guidelines
+- Commit message conventions
+- Local testing procedures before PyPI publication
+
+### Community
+- Clear paths for bug reports, feature requests, and questions
+- Recognition system for contributors
+- Transparent roadmap and feature voting
+
+### Notes
+This release focuses on documentation, community building, and making DockSec ready for broader open source promotion. No functional changes to the core scanning engine.
+
+---
+
 ## [0.0.19] - 2025-06-26
 
 ### Added

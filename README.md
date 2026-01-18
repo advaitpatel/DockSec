@@ -14,7 +14,7 @@
     <a href="#features">Features</a> •
     <a href="#installation">Installation</a> •
     <a href="#usage">Usage</a> •
-    <a href="CONTRIBUTING.md">Contributing</a>
+    <a href="docs/CONTRIBUTING.md">Contributing</a>
   </p>
 </div>
 
@@ -118,7 +118,7 @@ LLM_MODEL=gpt-4o
 TRIVY_SCAN_TIMEOUT=600
 ```
 
-See [full configuration options](CONTRIBUTING.md#configuration).
+See [full configuration options](docs/CONTRIBUTING.md#configuration).
 
 ## Example Output
 
@@ -173,7 +173,7 @@ See [open issues](https://github.com/advaitpatel/DockSec/issues) or suggest feat
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
 
 Quick links:
 - [Report a bug](https://github.com/advaitpatel/DockSec/issues/new?template=bug_report.md)
@@ -182,11 +182,11 @@ Quick links:
 
 ## Documentation
 
-- [Installation Guide](CONTRIBUTING.md#development-setup)
-- [Configuration Options](CONTRIBUTING.md#configuration)
+- [Installation Guide](docs/CONTRIBUTING.md#development-setup)
+- [Configuration Options](docs/CONTRIBUTING.md#configuration)
 - [Examples](examples/)
-- [Changelog](CHANGELOG.md)
-- [Security Policy](SECURITY.md)
+- [Changelog](docs/CHANGELOG.md)
+- [Security Policy](docs/SECURITY.md)
 
 ## Troubleshooting
 
@@ -199,7 +199,7 @@ Quick links:
 **"Python version not supported"**  
 → DockSec requires Python 3.12+. Use `pyenv install 3.12` to upgrade.
 
-For more issues, see [Troubleshooting Guide](CONTRIBUTING.md#troubleshooting).
+For more issues, see [Troubleshooting Guide](docs/CONTRIBUTING.md#troubleshooting).
 
 ## License
 

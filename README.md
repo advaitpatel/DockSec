@@ -1,6 +1,6 @@
 [![GitHub Repo stars](https://img.shields.io/github/stars/advaitpatel/DockSec?style=flat)](https://github.com/advaitpatel/DockSec)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PyPI version](https://badge.fury.io/py/docksec.svg)](https://badge.fury.io/py/docksec)
+[![PyPI version](https://img.shields.io/pypi/v/docksec.svg)](https://pypi.org/project/docksec/)
 [![Python Version](https://img.shields.io/pypi/pyversions/docksec.svg)](https://pypi.org/project/docksec/)
 
 <div align="center">

@@ -31,6 +31,19 @@ DockSec combines traditional Docker security scanners (Trivy, Hadolint, Docker S
 
 Think of it as having a security expert review your Dockerfiles.
 
+## How It Works
+
+<div align="center">
+  <img src="images/workflow.png" alt="DockSec Workflow" width="800">
+  <p><em>DockSec workflow: From scanning to actionable insights</em></p>
+</div>
+
+DockSec follows a simple pipeline:
+1. **Scan** - Runs Trivy, Hadolint, and Docker Scout on your images/Dockerfiles
+2. **Analyze** - AI processes all findings and correlates them with your setup
+3. **Recommend** - Get plain English explanations with specific line-by-line fixes
+4. **Report** - Export results in JSON, PDF, HTML, or Markdown formats
+
 ## Quick Start
 
 ```bash

@@ -3,7 +3,7 @@ import os
 import glob
 setup(
     name="docksec",
-    version="0.0.20",
+    version="2026.1.24",
     description="AI-Powered Docker Security Analyzer",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

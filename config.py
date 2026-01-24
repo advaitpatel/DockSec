@@ -52,10 +52,13 @@ if OPENAI_API_KEY:
 
 BASE_DIR: str = os.path.abspath(os.path.dirname(__file__))
 
-# RESULTS_DIR = os.path.join(BASE_DIR, "results")
-RESULTS_DIR: str = os.path.join(os.getcwd(), "results")
+# Results directory configuration
+# Priority: 1. Environment variable, 2. DockSec installation directory (default)
+# Users can customize by setting: export DOCKSEC_RESULTS_DIR=/custom/path
+RESULTS_DIR: str = os.getenv("DOCKSEC_RESULTS_DIR", os.path.join(BASE_DIR, "results"))
 
-os.makedirs(os.path.dirname(RESULTS_DIR), exist_ok=True)
+# Create results directory if it doesn't exist
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
 
 

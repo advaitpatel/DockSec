@@ -944,7 +944,13 @@ class DockerSecurityScanner:
                 report_paths['html'] = html_path
             progress.update(html_task, advance=1)
         
-        print("\n[SUCCESS] All reports generated successfully!")
+        print("[SUCCESS] All reports generated successfully!")
+        print(f"Results location: {self.RESULTS_DIR}")
+        print(f"\nGenerated files:")
+        for report_type, path in report_paths.items():
+            if path:
+                print(f"   • {report_type.upper()}: {os.path.basename(path)}")
+        
         return report_paths
     
     def get_security_score(self, results: Dict) -> float:

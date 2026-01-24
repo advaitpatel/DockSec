@@ -199,6 +199,10 @@ Quick links:
 **"Python version not supported"**  
 → DockSec requires Python 3.12+. Use `pyenv install 3.12` to upgrade.
 
+**"Where are my scan results?"**  
+→ Results are saved to `results/` directory in your DockSec installation  
+→ Customize location: `export DOCKSEC_RESULTS_DIR=/custom/path`
+
 For more issues, see [Troubleshooting Guide](docs/CONTRIBUTING.md#troubleshooting).
 
 ## License

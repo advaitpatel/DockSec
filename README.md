@@ -152,14 +152,6 @@ Critical Issues (3):
 📊 Full report: results/nginx_latest_report.html
 ```
 
-## Examples
-
-Check out example Dockerfiles in [`examples/`](examples/):
-
-- **Secure Python app** - Best practices (Score: 95/100)
-- **Vulnerable Node app** - Common mistakes (Score: 32/100)  
-- **Multi-stage Go build** - Advanced patterns (Score: 98/100)
-
 ## Architecture
 
 ```
@@ -197,7 +189,6 @@ Quick links:
 
 - [Installation Guide](docs/CONTRIBUTING.md#development-setup)
 - [Configuration Options](docs/CONTRIBUTING.md#configuration)
-- [Examples](examples/)
 - [Changelog](docs/CHANGELOG.md)
 - [Security Policy](docs/SECURITY.md)
 

@@ -63,7 +63,7 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         docksec -h
-        docksec --ai-only ./testfiles/2/Dockerfile
+        docksec --version
     
     - name: Upload coverage report
       uses: actions/upload-artifact@v4

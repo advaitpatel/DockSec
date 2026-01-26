@@ -259,7 +259,6 @@ Good documentation is crucial! When contributing:
 ### User Documentation
 
 - Update **README.md** if you add features
-- Add **examples** in the `examples/` directory
 - Update **CLI help text** if you change commands
 - Add entries to **CHANGELOG.md**
 
@@ -275,7 +274,6 @@ Good documentation is crucial! When contributing:
 ```
 DockSec/
 ├── .github/              # GitHub templates and workflows
-├── examples/             # Example Dockerfiles and usage
 ├── templates/            # Report templates
 ├── tests/                # Test files
 ├── docksec.py           # Main CLI entry point
@@ -369,7 +367,7 @@ Maintainers follow this process for releases:
 
 ### Getting Help
 
-- Read the [README](README.md) and [examples](examples/)
+- Read the [README](../README.md)
 - Check [existing issues](https://github.com/advaitpatel/DockSec/issues)
 - Ask questions in [Discussions](https://github.com/advaitpatel/DockSec/discussions)
 

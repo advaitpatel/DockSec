@@ -90,27 +90,32 @@ jobs:
         EOF
         cat test_dir/Dockerfile
         
-        # Test 4: Basic Trivy scan (via DockSec scan-only)
+        # Test 4: Pull Docker image for testing
         echo ""
         echo "=========================================="
-        echo "Test 4: Scan-only mode (no AI)"
+        echo "Test 4: Pull test Docker image"
         echo "=========================================="
-        echo "Note: Errors about missing API key are expected in scan-only mode"
-        echo "The scan should still complete successfully"
-        docksec test_dir/Dockerfile --scan-only -i alpine:latest 2>&1 | grep -v "OPENAI_API_KEY" || echo "Scan completed (with expected warnings)"
+        docker pull alpine:latest
+        echo "✅ Alpine image pulled successfully"
         
-        # Test 5: Image-only scan
+        # Test 5: Scan-only mode (no AI)
         echo ""
         echo "=========================================="
-        echo "Test 5: Image-only scan"
+        echo "Test 5: Scan-only mode (no AI)"
         echo "=========================================="
-        echo "Note: Errors about missing API key are expected"
-        docksec --image-only -i alpine:latest 2>&1 | grep -v "OPENAI_API_KEY" || echo "Image scan completed (with expected warnings)"
+        docksec test_dir/Dockerfile --scan-only -i alpine:latest || echo "Scan completed"
         
-        # Test 6: Verify results directory was created
+        # Test 6: Image-only scan
         echo ""
         echo "=========================================="
-        echo "Test 6: Checking results"
+        echo "Test 6: Image-only scan"
+        echo "=========================================="
+        docksec --image-only -i alpine:latest || echo "Image scan completed"
+        
+        # Test 7: Verify results directory was created
+        echo ""
+        echo "=========================================="
+        echo "Test 7: Checking results"
         echo "=========================================="
         if [ -d "results" ]; then
           echo "✅ Results directory created successfully"

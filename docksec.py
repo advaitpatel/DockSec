@@ -5,6 +5,24 @@ import os
 import argparse
 from typing import NoReturn, Optional
 
+# Version - keep in sync with setup.py
+__version__ = "2026.1.24"
+
+def get_version():
+    """Get version from setup.py if available, otherwise use hardcoded version."""
+    try:
+        import re
+        setup_path = os.path.join(os.path.dirname(__file__), 'setup.py')
+        if os.path.exists(setup_path):
+            with open(setup_path, 'r') as f:
+                content = f.read()
+                match = re.search(r'version="([^"]+)"', content)
+                if match:
+                    return match.group(1)
+    except:
+        pass
+    return __version__
+
 def main() -> None:
     """
     Main entry point for the DockSec CLI tool.
@@ -17,6 +35,7 @@ def main() -> None:
     parser.add_argument('--ai-only', action='store_true', help='Run only AI-based recommendations (requires Dockerfile)')
     parser.add_argument('--scan-only', action='store_true', help='Run only Dockerfile/image scanning (requires --image)')
     parser.add_argument('--image-only', action='store_true', help='Scan only the Docker image without Dockerfile analysis')
+    parser.add_argument('--version', action='version', version=f'DockSec {get_version()}')
     
     args = parser.parse_args()
     

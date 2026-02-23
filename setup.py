@@ -9,7 +9,7 @@ setup(
     long_description_content_type="text/markdown",
     author="Advait Patel",
     url="https://github.com/advaitpatel/DockSec",
-    py_modules=["docksec", "main", "docker_scanner", "utils", "config", "setup_external_tools"],
+    py_modules=["docksec", "main", "docker_scanner", "utils", "config", "config_manager", "report_generator", "score_calculator", "setup_external_tools"],
     entry_points={
         "console_scripts": [
             "docksec=docksec:main",

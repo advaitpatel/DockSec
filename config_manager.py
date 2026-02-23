@@ -28,7 +28,11 @@ class DocksecConfig:
     - Scan parameters
     
     Attributes:
+        llm_provider: LLM provider to use (openai, anthropic, google, ollama)
         openai_api_key: OpenAI API key for AI features
+        anthropic_api_key: Anthropic API key for Claude
+        google_api_key: Google API key for Gemini
+        ollama_base_url: Base URL for Ollama server (local models)
         base_dir: Base directory of the application
         results_dir: Directory for storing scan results
         timeout_hadolint: Timeout for Hadolint scans (seconds)
@@ -36,12 +40,18 @@ class DocksecConfig:
         timeout_docker_scout: Timeout for Docker Scout scans (seconds)
         timeout_llm: Timeout for LLM API calls (seconds)
         max_retries_llm: Maximum number of retry attempts for LLM calls
-        llm_model: OpenAI model to use (default: gpt-4o)
+        llm_model: Model name to use (e.g., gpt-4o, claude-3-5-sonnet-20241022, gemini-pro, llama3.1)
         llm_temperature: Temperature setting for LLM (0-1)
     """
     
+    # LLM Provider Configuration
+    llm_provider: str = "openai"
+    
     # API Configuration
     openai_api_key: Optional[str] = None
+    anthropic_api_key: Optional[str] = None
+    google_api_key: Optional[str] = None
+    ollama_base_url: str = "http://localhost:11434"
     
     # Directory Configuration
     base_dir: str = field(default_factory=lambda: os.path.abspath(os.path.dirname(__file__)))
@@ -76,12 +86,28 @@ class DocksecConfig:
         if not self.openai_api_key:
             self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
         
+        if not self.anthropic_api_key:
+            self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "")
+        
+        if not self.google_api_key:
+            self.google_api_key = os.getenv("GOOGLE_API_KEY", "")
+        
+        # Load provider from environment
+        self.llm_provider = os.getenv("LLM_PROVIDER", self.llm_provider).lower()
+        
+        # Load Ollama base URL from environment
+        self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", self.ollama_base_url)
+        
         # Ensure results directory exists
         os.makedirs(self.results_dir, exist_ok=True)
         
-        # Set environment variable for OpenAI (for backward compatibility)
+        # Set environment variables for backward compatibility
         if self.openai_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_api_key
+        if self.anthropic_api_key:
+            os.environ["ANTHROPIC_API_KEY"] = self.anthropic_api_key
+        if self.google_api_key:
+            os.environ["GOOGLE_API_KEY"] = self.google_api_key
         
         # Validate configuration
         self._validate()
@@ -93,6 +119,11 @@ class DocksecConfig:
         Raises:
             ValueError: If configuration values are invalid
         """
+        # Validate LLM provider
+        valid_providers = ['openai', 'anthropic', 'google', 'ollama']
+        if self.llm_provider not in valid_providers:
+            raise ValueError(f"Invalid llm_provider: {self.llm_provider}. Valid options: {valid_providers}")
+        
         # Validate timeouts
         if self.timeout_hadolint <= 0:
             raise ValueError(f"Invalid timeout_hadolint: {self.timeout_hadolint}. Must be positive.")
@@ -169,6 +200,43 @@ Note: You can use scan-only mode (--scan-only) without an API key.
             raise EnvironmentError(error_message.strip())
         return self.openai_api_key
     
+    def get_api_key_for_provider(self) -> str:
+        """
+        Get API key for the configured LLM provider.
+        
+        Returns:
+            str: The API key for the current provider
+            
+        Raises:
+            EnvironmentError: If API key is not set for the provider
+        """
+        if self.llm_provider == "openai":
+            if not self.openai_api_key:
+                raise EnvironmentError(
+                    "OpenAI API key not found. Set OPENAI_API_KEY environment variable or use --scan-only mode."
+                )
+            return self.openai_api_key
+        
+        elif self.llm_provider == "anthropic":
+            if not self.anthropic_api_key:
+                raise EnvironmentError(
+                    "Anthropic API key not found. Set ANTHROPIC_API_KEY environment variable or use --scan-only mode."
+                )
+            return self.anthropic_api_key
+        
+        elif self.llm_provider == "google":
+            if not self.google_api_key:
+                raise EnvironmentError(
+                    "Google API key not found. Set GOOGLE_API_KEY environment variable or use --scan-only mode."
+                )
+            return self.google_api_key
+        
+        elif self.llm_provider == "ollama":
+            return ""
+        
+        else:
+            raise ValueError(f"Unsupported LLM provider: {self.llm_provider}")
+    
     def update(self, **kwargs: Any) -> None:
         """
         Update configuration values.
@@ -196,6 +264,7 @@ Note: You can use scan-only mode (--scan-only) without an API key.
             Dictionary of configuration values
         """
         return {
+            'llm_provider': self.llm_provider,
             'base_dir': self.base_dir,
             'results_dir': self.results_dir,
             'timeout_hadolint': self.timeout_hadolint,
@@ -210,7 +279,10 @@ Note: You can use scan-only mode (--scan-only) without an API key.
             'retry_max_wait': self.retry_max_wait,
             'default_severity': self.default_severity,
             'max_file_size_mb': self.max_file_size_mb,
-            'has_api_key': bool(self.openai_api_key)
+            'ollama_base_url': self.ollama_base_url,
+            'has_openai_key': bool(self.openai_api_key),
+            'has_anthropic_key': bool(self.anthropic_api_key),
+            'has_google_key': bool(self.google_api_key)
         }
     
     @classmethod
@@ -222,15 +294,19 @@ Note: You can use scan-only mode (--scan-only) without an API key.
             DocksecConfig instance with values from environment
         """
         return cls(
+            llm_provider=os.getenv("LLM_PROVIDER", "openai").lower(),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
+            anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
             results_dir=os.getenv("DOCKSEC_RESULTS_DIR", os.path.join(os.getcwd(), "results")),
             timeout_hadolint=int(os.getenv("DOCKSEC_TIMEOUT_HADOLINT", "300")),
             timeout_trivy=int(os.getenv("DOCKSEC_TIMEOUT_TRIVY", "600")),
             timeout_docker_scout=int(os.getenv("DOCKSEC_TIMEOUT_DOCKER_SCOUT", "300")),
             timeout_llm=int(os.getenv("DOCKSEC_TIMEOUT_LLM", "60")),
             max_retries_llm=int(os.getenv("DOCKSEC_MAX_RETRIES_LLM", "2")),
-            llm_model=os.getenv("DOCKSEC_LLM_MODEL", "gpt-4o"),
-            llm_temperature=float(os.getenv("DOCKSEC_LLM_TEMPERATURE", "0.0")),
+            llm_model=os.getenv("LLM_MODEL", "gpt-4o"),
+            llm_temperature=float(os.getenv("LLM_TEMPERATURE", "0.0")),
             retry_attempts=int(os.getenv("DOCKSEC_RETRY_ATTEMPTS", "3")),
             retry_min_wait=int(os.getenv("DOCKSEC_RETRY_MIN_WAIT", "2")),
             retry_max_wait=int(os.getenv("DOCKSEC_RETRY_MAX_WAIT", "10")),

@@ -3,7 +3,7 @@ import os
 import glob
 setup(
     name="docksec",
-    version="2026.1.24",
+    version="2026.2.23",
     description="AI-Powered Docker Security Analyzer",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -26,6 +26,9 @@ setup(
         "langchain-core>=0.3.0,<2.0.0",
         "langchain>=0.3.0,<2.0.0",
         "langchain-openai>=0.2.0,<1.0.0",
+        "langchain-anthropic>=0.1.0,<1.0.0",
+        "langchain-google-genai>=1.0.0,<2.0.0",
+        "langchain-ollama>=0.1.0,<1.0.0",
         "python-dotenv>=1.0.0,<2.0.0",
         "pandas>=2.0.0,<3.0.0",
         "tqdm>=4.65.0,<5.0.0",

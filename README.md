@@ -24,10 +24,10 @@
 
 DockSec combines traditional Docker security scanners (Trivy, Hadolint, Docker Scout) with AI to provide **context-aware security analysis**. Instead of dumping 200 CVEs and leaving you to figure it out, DockSec:
 
-- 🎯 Prioritizes what actually matters
-- 💡 Explains vulnerabilities in plain English  
-- 🔧 Suggests specific fixes for YOUR Dockerfile
-- 📊 Generates professional security reports
+- Prioritizes what actually matters
+- Explains vulnerabilities in plain English  
+- Suggests specific fixes for YOUR Dockerfile
+- Generates professional security reports
 
 Think of it as having a security expert review your Dockerfiles.
 
@@ -62,12 +62,13 @@ docksec Dockerfile --scan-only
 
 ## Features
 
-- **Smart Analysis**: AI explains what vulnerabilities mean for your specific setup
-- **Multiple Scanners**: Integrates Trivy, Hadolint, and Docker Scout
-- **Security Scoring**: Get a 0-100 score to track improvements
-- **Multiple Formats**: Export reports as HTML, PDF, JSON, or CSV
-- **No AI Required**: Works offline with `--scan-only` mode
-- **CI/CD Ready**: Easy integration into build pipelines
+- Smart Analysis: AI explains what vulnerabilities mean for your specific setup
+- Multiple LLM Providers: Support for OpenAI, Anthropic Claude, Google Gemini, and Ollama (local models)
+- Multiple Scanners: Integrates Trivy, Hadolint, and Docker Scout
+- Security Scoring: Get a 0-100 score to track improvements
+- Multiple Formats: Export reports as HTML, PDF, JSON, or CSV
+- No AI Required: Works offline with `--scan-only` mode
+- CI/CD Ready: Easy integration into build pipelines
 
 ## Installation
 
@@ -77,9 +78,35 @@ docksec Dockerfile --scan-only
 pip install docksec
 ```
 
-**For AI features**, set your OpenAI API key:
+**For AI features**, choose your preferred LLM provider:
+
+### OpenAI (Default)
 ```bash
 export OPENAI_API_KEY="your-key-here"
+```
+
+### Anthropic Claude
+```bash
+export ANTHROPIC_API_KEY="your-key-here"
+export LLM_PROVIDER="anthropic"
+export LLM_MODEL="claude-3-5-sonnet-20241022"
+```
+
+### Google Gemini
+```bash
+export GOOGLE_API_KEY="your-key-here"
+export LLM_PROVIDER="google"
+export LLM_MODEL="gemini-1.5-pro"
+```
+
+### Ollama (Local Models)
+```bash
+# First, install and run Ollama: https://ollama.ai
+# Then pull a model: ollama pull llama3.1
+export LLM_PROVIDER="ollama"
+export LLM_MODEL="llama3.1"
+# Optional: customize Ollama URL
+export OLLAMA_BASE_URL="http://localhost:11434"
 ```
 
 **External tools** (optional, for full scanning):
@@ -108,6 +135,12 @@ docksec Dockerfile --scan-only
 
 # Scan image without Dockerfile
 docksec --image-only -i nginx:latest
+
+# Use specific LLM provider and model
+docksec Dockerfile --provider anthropic --model claude-3-5-sonnet-20241022
+
+# Use local Ollama model
+docksec Dockerfile --provider ollama --model llama3.1
 ```
 
 ### CLI Options
@@ -117,6 +150,8 @@ docksec --image-only -i nginx:latest
 | `dockerfile` | Path to Dockerfile |
 | `-i, --image` | Docker image to scan |
 | `-o, --output` | Output file path |
+| `--provider` | LLM provider (openai, anthropic, google, ollama) |
+| `--model` | Model name (e.g., gpt-4o, claude-3-5-sonnet-20241022) |
 | `--ai-only` | AI analysis only (no scanning) |
 | `--scan-only` | Scanning only (no AI) |
 | `--image-only` | Scan image without Dockerfile |
@@ -126,9 +161,22 @@ docksec --image-only -i nginx:latest
 Create a `.env` file for advanced configuration:
 
 ```bash
-OPENAI_API_KEY=your-key
-LLM_MODEL=gpt-4o
+# LLM Provider Configuration
+LLM_PROVIDER=openai                    # Options: openai, anthropic, google, ollama
+LLM_MODEL=gpt-4o                       # Model to use
+LLM_TEMPERATURE=0.0                    # Temperature (0-1)
+
+# API Keys
+OPENAI_API_KEY=your-openai-key
+ANTHROPIC_API_KEY=your-anthropic-key
+GOOGLE_API_KEY=your-google-key
+
+# Ollama Configuration (for local models)
+OLLAMA_BASE_URL=http://localhost:11434
+
+# Scanning Configuration
 TRIVY_SCAN_TIMEOUT=600
+DOCKSEC_DEFAULT_SEVERITY=CRITICAL,HIGH
 ```
 
 See [full configuration options](docs/CONTRIBUTING.md#configuration).
@@ -158,19 +206,25 @@ Critical Issues (3):
 Dockerfile → [Trivy + Hadolint + Scout] → AI Analysis → Reports
 ```
 
-DockSec runs security scanners locally, then uses GPT-4 to:
+DockSec runs security scanners locally, then uses AI to:
 1. Combine and deduplicate findings
 2. Assess real-world impact for your context
 3. Generate actionable remediation steps
 4. Calculate security score
 
-All scanning happens on your machine. Only scan results (not your code) are sent to OpenAI when using AI features.
+**Supported AI Providers:**
+- **OpenAI**: GPT-4o, GPT-4 Turbo, GPT-3.5 Turbo
+- **Anthropic**: Claude 3.5 Sonnet, Claude 3 Opus
+- **Google**: Gemini 1.5 Pro, Gemini 1.5 Flash
+- **Ollama**: Llama 3.1, Mistral, Phi-3, and other local models
+
+All scanning happens on your machine. Only scan results (not your code) are sent to the AI provider when using AI features.
 
 ## Roadmap
 
+- [x] Multiple LLM provider support (OpenAI, Anthropic, Google, Ollama)
 - [ ] Docker Compose support
 - [ ] Kubernetes manifest scanning  
-- [ ] Additional LLM providers (Claude, local models)
 - [ ] GitHub Actions integration
 - [ ] Custom security policies
 
@@ -195,13 +249,19 @@ Quick links:
 ## Troubleshooting
 
 **"No OpenAI API Key provided"**  
-→ Set `OPENAI_API_KEY` or use `--scan-only` mode
+→ Set appropriate API key for your provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY) or use `--scan-only` mode
+
+**"Unsupported LLM provider"**  
+→ Valid providers: openai, anthropic, google, ollama. Set with `--provider` flag or LLM_PROVIDER env var
 
 **"Hadolint not found"**  
 → Run `python -m docksec.setup_external_tools`
 
 **"Python version not supported"**  
 → DockSec requires Python 3.12+. Use `pyenv install 3.12` to upgrade.
+
+**"Connection refused" with Ollama**  
+→ Make sure Ollama is running: `ollama serve` and the model is pulled: `ollama pull llama3.1`
 
 **"Where are my scan results?"**  
 → Results are saved to `results/` directory in your DockSec installation  

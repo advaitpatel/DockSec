@@ -1,7 +1,35 @@
 import logging
 import sys
 import os
-from langchain_openai import ChatOpenAI
+from typing import Union
+
+# Import OpenAI (required)
+try:
+    from langchain_openai import ChatOpenAI
+except ImportError as e:
+    raise ImportError(
+        f"Failed to import langchain_openai: {e}. "
+        "Please install: pip install langchain-openai"
+    )
+
+# Import optional providers
+try:
+    from langchain_anthropic import ChatAnthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+
+try:
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    GOOGLE_AVAILABLE = True
+except ImportError:
+    GOOGLE_AVAILABLE = False
+
+try:
+    from langchain_ollama import ChatOllama
+    OLLAMA_AVAILABLE = True
+except ImportError:
+    OLLAMA_AVAILABLE = False
 from config import (
     BASE_DIR,
     OPENAI_API_KEY
@@ -9,7 +37,6 @@ from config import (
 try:
     from langchain_core.pydantic_v1 import BaseModel, Field
 except ImportError:
-    # Fallback to standard pydantic if langchain_core.pydantic_v1 is not available
     try:
         from pydantic import BaseModel, Field
     except ImportError:
@@ -98,50 +125,126 @@ def _call_llm_with_retry(llm, *args, **kwargs):
     return llm.invoke(*args, **kwargs)
 
 
-def get_llm():
+def get_llm() -> Union[ChatOpenAI, 'ChatAnthropic', 'ChatGoogleGenerativeAI', 'ChatOllama']:
     """
     Get LLM instance with retry logic and rate limiting support.
     
     This function checks for API key availability and returns a configured
-    ChatOpenAI instance. All calls through this LLM will have automatic retry
-    logic with exponential backoff for transient failures and rate limiting.
+    LLM instance based on the configured provider. All calls through this LLM 
+    will have automatic retry logic with exponential backoff for transient 
+    failures and rate limiting.
+    
+    Supported providers:
+    - OpenAI (gpt-4o, gpt-4-turbo, gpt-3.5-turbo)
+    - Anthropic (claude-3-5-sonnet-20241022, claude-3-opus-20240229)
+    - Google (gemini-1.5-pro, gemini-1.5-flash)
+    - Ollama (llama3.1, mistral, phi3, local models)
     
     Returns:
-        ChatOpenAI: Configured LLM instance
+        LLM instance (ChatOpenAI, ChatAnthropic, ChatGoogleGenerativeAI, or ChatOllama)
         
     Raises:
-        EnvironmentError: If OPENAI_API_KEY is not set
+        EnvironmentError: If API key is not set for the provider
+        ValueError: If provider or model is unsupported
+        ImportError: If required package for provider is not installed
         
     Note:
         - Retries up to 3 times on transient errors
         - Uses exponential backoff: 2s, 4s, 8s
         - Handles rate limiting automatically
     """
-    from config import get_openai_api_key
-    # Check API key only when LLM is actually needed
+    from config_manager import get_config
+    
     try:
-        api_key = get_openai_api_key()
-        if not os.getenv("OPENAI_API_KEY"):
-            os.environ["OPENAI_API_KEY"] = api_key
+        config = get_config()
+        provider = config.llm_provider
+        model = config.llm_model
+        temperature = config.llm_temperature
+        timeout = config.timeout_llm
+        max_retries = config.max_retries_llm
         
-        # Configure LLM with timeout and error handling
-        llm = ChatOpenAI(
-            model="gpt-4o",
-            temperature=0,
-            request_timeout=60,  # 60 second timeout
-            max_retries=2  # LangChain's own retry on top of our retry logic
-        )
-        logger.info("LLM initialized successfully with retry logic enabled")
-        return llm
+        logger.info(f"Initializing LLM with provider: {provider}, model: {model}")
+        
+        if provider == "openai":
+            api_key = config.get_api_key_for_provider()
+            if not os.getenv("OPENAI_API_KEY"):
+                os.environ["OPENAI_API_KEY"] = api_key
+            
+            llm = ChatOpenAI(
+                model=model,
+                temperature=temperature,
+                request_timeout=timeout,
+                max_retries=max_retries
+            )
+            logger.info("OpenAI LLM initialized successfully")
+            return llm
+        
+        elif provider == "anthropic":
+            if not ANTHROPIC_AVAILABLE:
+                raise ImportError(
+                    "Anthropic provider requested but langchain-anthropic is not installed. "
+                    "Install it with: pip install langchain-anthropic"
+                )
+            api_key = config.get_api_key_for_provider()
+            if not os.getenv("ANTHROPIC_API_KEY"):
+                os.environ["ANTHROPIC_API_KEY"] = api_key
+            
+            llm = ChatAnthropic(
+                model=model,
+                temperature=temperature,
+                timeout=timeout,
+                max_retries=max_retries
+            )
+            logger.info("Anthropic Claude LLM initialized successfully")
+            return llm
+        
+        elif provider == "google":
+            if not GOOGLE_AVAILABLE:
+                raise ImportError(
+                    "Google provider requested but langchain-google-genai is not installed. "
+                    "Install it with: pip install langchain-google-genai"
+                )
+            api_key = config.get_api_key_for_provider()
+            if not os.getenv("GOOGLE_API_KEY"):
+                os.environ["GOOGLE_API_KEY"] = api_key
+            
+            llm = ChatGoogleGenerativeAI(
+                model=model,
+                temperature=temperature,
+                timeout=timeout,
+                max_retries=max_retries
+            )
+            logger.info("Google Gemini LLM initialized successfully")
+            return llm
+        
+        elif provider == "ollama":
+            if not OLLAMA_AVAILABLE:
+                raise ImportError(
+                    "Ollama provider requested but langchain-ollama is not installed. "
+                    "Install it with: pip install langchain-ollama"
+                )
+            llm = ChatOllama(
+                model=model,
+                temperature=temperature,
+                base_url=config.ollama_base_url,
+                timeout=timeout
+            )
+            logger.info(f"Ollama LLM initialized successfully with base URL: {config.ollama_base_url}")
+            return llm
+        
+        else:
+            raise ValueError(f"Unsupported LLM provider: {provider}. Supported: openai, anthropic, google, ollama")
         
     except Exception as e:
         logger.error(f"Failed to initialize LLM: {str(e)}")
         console.print(f"\n[red]Error initializing AI features:[/red] {str(e)}")
         console.print("\n[yellow]Troubleshooting steps:[/yellow]")
-        console.print("1. Verify your OpenAI API key is correct")
+        console.print("1. Verify your API key is correct for the selected provider")
         console.print("2. Check your internet connection")
-        console.print("3. Verify your OpenAI account has available credits")
+        console.print("3. Verify your account has available credits")
         console.print("4. Try using --scan-only mode if you don't need AI features")
+        console.print(f"5. Current provider: {config.llm_provider if 'config' in locals() else 'unknown'}")
+        console.print("6. Set LLM_PROVIDER environment variable to change provider (openai/anthropic/google/ollama)")
         raise
 
 

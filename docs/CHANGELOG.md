@@ -5,6 +5,68 @@ All notable changes to DockSec will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.2.23] - 2026-02-23
+
+### Added
+- Multiple LLM Provider Support
+  - OpenAI (GPT-4o, GPT-4 Turbo, GPT-3.5 Turbo)
+  - Anthropic Claude (Claude 3.5 Sonnet, Claude 3 Opus)
+  - Google Gemini (Gemini 1.5 Pro, Gemini 1.5 Flash)
+  - Ollama (Llama 3.1, Mistral, Phi-3, and other local models)
+  
+- New CLI Options
+  - `--provider` flag to select LLM provider (openai, anthropic, google, ollama)
+  - `--model` flag to specify model name
+  - Environment variables: LLM_PROVIDER, LLM_MODEL, ANTHROPIC_API_KEY, GOOGLE_API_KEY, OLLAMA_BASE_URL
+
+- Enhanced Configuration
+  - config_manager.py now supports multiple providers with validation
+  - Automatic provider detection from environment variables
+  - Configurable Ollama base URL for custom deployments
+
+### Changed
+- Core Architecture Updates
+  - utils.py get_llm() function completely rewritten to support multiple providers
+  - Graceful fallback and improved error messages for missing API keys
+  - Better provider validation and configuration handling
+
+- Documentation Improvements
+  - README updated with multi-provider setup instructions
+  - New troubleshooting section for each provider
+  - Updated CLI examples showing provider selection
+
+### Fixed
+- API key handling improved with provider-specific validation
+- Better error messages indicating which provider and API key is needed
+
+### Migration Guide
+For existing users:
+- **No Breaking Changes**: OpenAI remains the default provider
+- Existing OPENAI_API_KEY environment variable still works as before
+- To switch providers, simply set LLM_PROVIDER environment variable or use --provider flag
+
+Example migration to Claude:
+```bash
+export ANTHROPIC_API_KEY="your-key"
+export LLM_PROVIDER="anthropic"
+export LLM_MODEL="claude-3-5-sonnet-20241022"
+docksec Dockerfile
+```
+
+Or use local models with Ollama:
+```bash
+# No API key needed!
+ollama pull llama3.1
+export LLM_PROVIDER="ollama"
+export LLM_MODEL="llama3.1"
+docksec Dockerfile
+```
+
+### Deprecations
+- None. GPT-4 support continues but GPT-4o is recommended for better performance.
+
+---
+
 ## [0.0.20] - 2026-01-09
 
 ### Added

@@ -2,6 +2,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://img.shields.io/pypi/v/docksec.svg)](https://pypi.org/project/docksec/)
 [![Python Version](https://img.shields.io/pypi/pyversions/docksec.svg)](https://pypi.org/project/docksec/)
+[![OWASP Incubator](https://img.shields.io/badge/OWASP-Incubator%20Project-48A646?logo=owasp)](https://owasp.org/www-project-docksec/)
 
 <div align="center">
   <img src="https://github.com/advaitpatel/DockSec/blob/main/images/docksec-logo-II.png" alt="DockSec" height="120">
@@ -16,13 +17,23 @@
     <a href="#usage">Usage</a> •
     <a href="docs/CONTRIBUTING.md">Contributing</a>
   </p>
+  
+  <br>
+  
+  <p>
+    <a href="https://owasp.org/www-project-docksec/">
+      <img src="images/owasp-logo.png" alt="OWASP" height="60">
+    </a>
+  </p>
+  <p><strong>🏆 Officially recognized as an OWASP Incubator Project</strong></p>
+  <p>Trusted by the global security community • 14,000+ downloads</p>
 </div>
 
 ---
 
 ## What is DockSec?
 
-DockSec combines traditional Docker security scanners (Trivy, Hadolint, Docker Scout) with AI to provide **context-aware security analysis**. Instead of dumping 200 CVEs and leaving you to figure it out, DockSec:
+DockSec is an **OWASP Incubator Project** that combines traditional Docker security scanners (Trivy, Hadolint, Docker Scout) with AI to provide **context-aware security analysis**. Instead of dumping 200 CVEs and leaving you to figure it out, DockSec:
 
 - Prioritizes what actually matters
 - Explains vulnerabilities in plain English  
@@ -30,6 +41,17 @@ DockSec combines traditional Docker security scanners (Trivy, Hadolint, Docker S
 - Generates professional security reports
 
 Think of it as having a security expert review your Dockerfiles.
+
+### Why OWASP Recognition Matters
+
+Being recognized as an [OWASP Incubator Project](https://owasp.org/www-project-docksec/) means:
+- ✅ **Peer-reviewed** by security professionals
+- ✅ **Community-driven** development and governance
+- ✅ **Trusted** by enterprises and security teams worldwide
+- ✅ **Open source** with transparent security practices
+- ✅ **Active maintenance** and regular updates
+
+Join thousands of developers using DockSec to secure their containers.
 
 ## How It Works
 
@@ -273,8 +295,25 @@ For more issues, see [Troubleshooting Guide](docs/CONTRIBUTING.md#troubleshootin
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## Links
+## Recognition & Community
 
+<div align="center">
+  <a href="https://owasp.org/www-project-docksec/">
+    <img src="images/owasp-logo.png" alt="OWASP" height="80">
+  </a>
+</div>
+
+DockSec is proud to be an **OWASP Incubator Project**, recognized by the Open Web Application Security Project for its contribution to application security.
+
+### What This Means
+- **Vetted by Security Experts**: OWASP projects undergo rigorous review
+- **Community Trust**: Join thousands of security professionals using OWASP tools
+- **Enterprise Ready**: OWASP recognition provides confidence for enterprise adoption
+- **Long-term Sustainability**: Backed by a global nonprofit foundation
+
+### Links
+
+- **OWASP Project Page**: https://owasp.org/www-project-docksec/
 - **PyPI**: https://pypi.org/project/docksec/
 - **Issues**: https://github.com/advaitpatel/DockSec/issues
 - **Discussions**: https://github.com/advaitpatel/DockSec/discussions

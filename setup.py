@@ -34,7 +34,7 @@ setup(
         "tqdm==4.67.1",
         "colorama==0.4.6",
         "rich==13.9.4",
-        "fpdf2==2.8.1",
+        "fpdf2==2.8.7",
         "tenacity==9.0.0",
         "setuptools>=65.0.0",
     ],

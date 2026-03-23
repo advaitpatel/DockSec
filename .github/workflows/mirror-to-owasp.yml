@@ -11,6 +11,8 @@ jobs:
   mirror:
     runs-on: ubuntu-latest
     name: Mirror repository to OWASP
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout repository

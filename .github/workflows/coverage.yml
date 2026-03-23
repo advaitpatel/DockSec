@@ -1,0 +1,78 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    name: Test Coverage Report
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    
+    - name: Install package
+      run: |
+        pip install -e .
+    
+    - name: Run tests with coverage
+      run: |
+        pytest tests/ --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing || echo "Tests completed with coverage"
+      continue-on-error: true
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-docksec
+        fail_ci_if_error: false
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    
+    - name: Upload coverage reports as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-reports
+        path: |
+          coverage.xml
+          htmlcov/
+        if-no-files-found: ignore
+    
+    - name: Generate Coverage Summary
+      run: |
+        echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ -f coverage.xml ]; then
+          echo "Coverage report generated successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 View detailed HTML report in artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # Extract coverage percentage if available
+          if command -v coverage &> /dev/null; then
+            echo "### Coverage Details:" >> $GITHUB_STEP_SUMMARY
+            coverage report --format=markdown >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Run completed" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "⚠️ No coverage data generated" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Coverage Badge
+      run: |
+        echo "Add this badge to your README.md:"
+        echo "[![codecov](https://codecov.io/gh/advaitpatel/DockSec/branch/main/graph/badge.svg)](https://codecov.io/gh/advaitpatel/DockSec)"

@@ -31,7 +31,7 @@ setup(
         "langchain-ollama==0.2.0",
         "python-dotenv==1.0.1",
         "pandas==2.2.3",
-        "tqdm==4.67.1",
+        "tqdm==4.67.3",
         "colorama==0.4.6",
         "rich==13.9.4",
         "fpdf2==2.8.1",

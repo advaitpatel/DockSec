@@ -153,7 +153,7 @@ jobs:
         echo "Note: Full AI features require OPENAI_API_KEY to be set in GitHub Secrets"
     
     - name: Upload coverage report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-report
         path: coverage.xml

@@ -29,7 +29,7 @@ setup(
         "langchain-anthropic==0.3.0",
         "langchain-google-genai==2.0.5",
         "langchain-ollama==0.2.0",
-        "python-dotenv==1.0.1",
+        "python-dotenv==1.2.2",
         "pandas==2.2.3",
         "tqdm==4.67.1",
         "colorama==0.4.6",

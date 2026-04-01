@@ -82,6 +82,18 @@ docksec Dockerfile -i myapp:latest
 docksec Dockerfile --scan-only
 ```
 
+
+### Try It Yourself
+
+1. Create a test Dockerfile:
+   echo "FROM nginx:latest" > Dockerfile
+
+2. Scan it:
+   docksec Dockerfile --scan-only
+
+3. See what security issues are found.
+
+
 ## Features
 
 - Smart Analysis: AI explains what vulnerabilities mean for your specific setup

@@ -5,23 +5,31 @@ import os
 import argparse
 from typing import NoReturn, Optional
 
-# Version - keep in sync with setup.py
-__version__ = "2026.2.23"
+def get_version() -> str:
+    """Return the installed package version.
 
-def get_version():
-    """Get version from setup.py if available, otherwise use hardcoded version."""
+    Resolution order:
+    1. importlib.metadata  — works when installed via pip
+    2. setup.py on disk    — works when running from source
+    3. 'unknown'           — last resort fallback
+    """
+    try:
+        from importlib.metadata import version
+        return version("docksec")
+    except Exception:  # package not installed; fall through to source fallback
+        pass
+
     try:
         import re
         setup_path = os.path.join(os.path.dirname(__file__), 'setup.py')
-        if os.path.exists(setup_path):
-            with open(setup_path, 'r') as f:
-                content = f.read()
-                match = re.search(r'version="([^"]+)"', content)
-                if match:
-                    return match.group(1)
-    except:
+        with open(setup_path, 'r') as f:
+            match = re.search(r'version="([^"]+)"', f.read())
+            if match:
+                return match.group(1)
+    except Exception:  # setup.py missing or unreadable; fall through to unknown
         pass
-    return __version__
+
+    return "unknown"
 
 def main() -> None:
     """

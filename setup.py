@@ -30,7 +30,7 @@ setup(
         "langchain-google-genai==2.0.5",
         "langchain-ollama==0.2.0",
         "python-dotenv==1.0.1",
-        "pandas==2.2.3",
+        "pandas==3.0.1",
         "tqdm==4.67.1",
         "colorama==0.4.6",
         "rich==13.9.4",

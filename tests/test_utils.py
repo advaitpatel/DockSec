@@ -43,28 +43,43 @@ class TestUtils(unittest.TestCase):
         result = load_docker_file("/nonexistent/path/Dockerfile")
         self.assertIsNone(result)
     
-    @patch('utils.get_openai_api_key')
     @patch('utils.ChatOpenAI')
-    def test_get_llm(self, mock_chatopenai, mock_api_key):
-        """Test LLM initialization."""
+    @patch('config_manager.get_config')
+    def test_get_llm(self, mock_get_config, mock_chatopenai):
+        """Test LLM initialization with a mocked config and mocked ChatOpenAI."""
         from utils import get_llm
-        
-        mock_api_key.return_value = "test-api-key"
+
+        mock_config = Mock()
+        mock_config.llm_provider = "openai"
+        mock_config.llm_model = "gpt-4o"
+        mock_config.llm_temperature = 0.0
+        mock_config.timeout_llm = 60
+        mock_config.max_retries_llm = 2
+        mock_config.get_api_key_for_provider.return_value = "test-api-key"
+        mock_get_config.return_value = mock_config
+
         mock_llm_instance = Mock()
         mock_chatopenai.return_value = mock_llm_instance
-        
+
         llm = get_llm()
-        
+
         mock_chatopenai.assert_called_once()
         self.assertIsNotNone(llm)
-    
-    @patch('utils.get_openai_api_key')
-    def test_get_llm_no_api_key(self, mock_api_key):
-        """Test LLM initialization without API key."""
+
+    @patch('config_manager.get_config')
+    def test_get_llm_no_api_key(self, mock_get_config):
+        """Test LLM initialization raises EnvironmentError when API key is missing."""
         from utils import get_llm
-        
-        mock_api_key.side_effect = EnvironmentError("API key not found")
-        
+
+        mock_config = Mock()
+        mock_config.llm_provider = "openai"
+        mock_config.llm_model = "gpt-4o"
+        mock_config.llm_temperature = 0.0
+        mock_config.timeout_llm = 60
+        mock_config.max_retries_llm = 2
+        mock_config.get_api_key_for_provider.side_effect = EnvironmentError("API key not found")
+        mock_get_config.return_value = mock_config
+
         with self.assertRaises(EnvironmentError):
             get_llm()
 

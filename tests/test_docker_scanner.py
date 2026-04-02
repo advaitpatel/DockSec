@@ -47,7 +47,9 @@ class TestDockerSecurityScanner(unittest.TestCase):
         from docker_scanner import DockerSecurityScanner
         
         scanner = DockerSecurityScanner(dockerfile, "test:latest")
-        self.assertEqual(scanner.dockerfile_path, dockerfile)
+        # Compare resolved paths — on macOS tempfile returns /var/... but
+        # _validate_file_path resolves it to /private/var/... via symlink.
+        self.assertEqual(scanner.dockerfile_path, str(Path(dockerfile).resolve()))
         self.assertEqual(scanner.image_name, "test:latest")
         self.assertIsNone(scanner.analysis_score)
     

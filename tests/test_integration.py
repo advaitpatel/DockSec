@@ -3,6 +3,7 @@ import unittest
 import os
 import tempfile
 import shutil
+from pathlib import Path
 from unittest.mock import patch, Mock
 
 # Import after mocking external dependencies
@@ -54,7 +55,9 @@ class TestIntegration(unittest.TestCase):
         
         # Verify initialization
         self.assertIsNotNone(scanner)
-        self.assertEqual(scanner.dockerfile_path, self.test_dockerfile)
+        # Compare resolved paths — on macOS tempfile returns /var/... but
+        # _validate_file_path resolves it to /private/var/... via symlink.
+        self.assertEqual(scanner.dockerfile_path, str(Path(self.test_dockerfile).resolve()))
         self.assertEqual(scanner.image_name, "test:latest")
     
     @patch('docker_scanner.subprocess.run')

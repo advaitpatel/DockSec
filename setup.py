@@ -23,7 +23,7 @@ setup(
     python_requires=">=3.12",
     install_requires=[
         "pydantic==2.10.3",
-        "langchain-core==0.3.26",
+        "langchain-core==1.2.22",
         "langchain==0.3.13",
         "langchain-openai==0.2.10",
         "langchain-anthropic==0.3.0",

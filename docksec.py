@@ -16,7 +16,7 @@ def get_version() -> str:
     try:
         from importlib.metadata import version
         return version("docksec")
-    except Exception:
+    except Exception:  # package not installed; fall through to source fallback
         pass
 
     try:
@@ -26,7 +26,7 @@ def get_version() -> str:
             match = re.search(r'version="([^"]+)"', f.read())
             if match:
                 return match.group(1)
-    except Exception:
+    except Exception:  # setup.py missing or unreadable; fall through to unknown
         pass
 
     return "unknown"

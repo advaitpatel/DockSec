@@ -7,94 +7,56 @@ assignees: ''
 
 ---
 
-## 🚀 Feature Request
+## Summary
 
 A clear and concise description of the feature you'd like to see.
 
-## 💡 Problem Statement
+## Problem Statement
 
-**Is your feature request related to a problem? Please describe.**
+What problem does this solve? Describe the gap or friction you're experiencing.
 
-A clear description of what the problem is. Ex. "I'm always frustrated when..."
+## Proposed Solution
 
-## 🎯 Proposed Solution
-
-**Describe the solution you'd like**
-
-A clear and concise description of what you want to happen.
+What you want to happen.
 
 **Example Usage:**
 
 ```bash
-# How would you use this feature?
+# How would this feature be used?
 docksec --new-feature path/to/Dockerfile
 ```
 
-## 🔄 Alternatives Considered
+## Alternatives Considered
 
-**Describe alternatives you've considered**
+Any alternative approaches you've thought about.
 
-A clear and concise description of any alternative solutions or features you've considered.
+## Use Case
 
-## 📊 Use Case
-
-**Who would benefit from this feature?**
+Who would benefit from this feature?
 
 - [ ] Individual developers
 - [ ] DevOps teams
 - [ ] Security teams
 - [ ] CI/CD pipelines
 - [ ] Enterprise users
-- [ ] Other: ___________
+- [ ] Other:
 
-**How often would you use this feature?**
+## Acceptance Criteria
 
-- [ ] Daily
-- [ ] Weekly
-- [ ] Monthly
-- [ ] Occasionally
-- [ ] One-time use
-
-## 🎨 Additional Context
-
-Add any other context, mockups, or screenshots about the feature request here.
-
-**Examples from other tools:**
-
-If you've seen this feature implemented elsewhere, please share examples.
-
-## ✅ Acceptance Criteria
-
-What would make this feature complete and ready to use?
+What does done look like?
 
 - [ ] Criteria 1
 - [ ] Criteria 2
 - [ ] Criteria 3
 
-## 📝 Implementation Ideas
+## Implementation Ideas
 
-If you have technical ideas on how to implement this, please share:
+Optional — share any technical thoughts on how this could be implemented:
 
 ```python
-# Pseudo-code or high-level implementation ideas
+# Pseudo-code or high-level ideas
 ```
 
-## 🔗 Related Issues
+## Related Issues
 
-Are there any related issues or PRs? Link them here:
-
-- #123
-- #456
-
-## ⚡ Priority
-
-How important is this feature to you?
-
-- [ ] Critical - Blocking my work
-- [ ] High - Would significantly improve my workflow
-- [ ] Medium - Nice to have
-- [ ] Low - Interesting idea for the future
-
----
-
-**Thank you for suggesting this feature! We value your input and will review it carefully.**
+- #

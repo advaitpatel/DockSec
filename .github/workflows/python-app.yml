@@ -10,81 +10,61 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.12'
-    
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Build and install package
+      run: |
+        pip install build
+        python -m build
+        pip install -e .
+
     - name: Setup Hadolint
       run: |
         curl -sL -o hadolint https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64
         chmod +x hadolint
         sudo mv hadolint /usr/local/bin/
-    
+
     - name: Setup Trivy
       run: |
-        sudo apt-get update
+        sudo apt-get update -qq
         sudo apt-get install -y wget apt-transport-https gnupg lsb-release
         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
         echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
-        sudo apt-get update
+        sudo apt-get update -qq
         sudo apt-get install -y trivy
-    
-    - name: Install dependencies
+
+    - name: Run unit tests
       run: |
-        python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    
-    - name: Build package
-      run: |
-        pip install build
-        python -m build
-    
-    - name: Install package in development mode
-      run: |
-        pip install -e .
-        # Ensure all dependencies are installed (including from setup.py)
-        pip install -r requirements.txt
-    
-    - name: Run Hadolint on Dockerfiles
+        pip install pytest
+        pytest tests/ -v
+
+    - name: Lint Dockerfiles with Hadolint
       run: |
         find . -name "Dockerfile*" -exec hadolint {} \;
-    
-    - name: Run Trivy for vulnerability scanning
+
+    - name: Scan Dockerfiles with Trivy
       run: |
         find . -name "Dockerfile*" -exec trivy config {} \;
-      
-    - name: Debug folder structure
+
+    - name: Verify CLI installs correctly
       run: |
-        echo "Current directory: $(pwd)"
-        ls -R
-    
-    - name: Run tests
-      env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      run: |
-        # Test 1: Version check
-        echo "=========================================="
-        echo "Test 1: Version check"
-        echo "=========================================="
         docksec --version
-        
-        # Test 2: Help command
-        echo ""
-        echo "=========================================="
-        echo "Test 2: Help command"
-        echo "=========================================="
-        docksec -h
-        
-        # Test 3: Create a test Dockerfile
-        echo ""
-        echo "=========================================="
-        echo "Test 3: Creating test Dockerfile"
-        echo "=========================================="
+        docksec --help
+
+    - name: Run scan-only mode (no AI required)
+      run: |
         mkdir -p test_dir
         cat > test_dir/Dockerfile << 'EOF'
         FROM alpine:latest
@@ -93,68 +73,18 @@ jobs:
         COPY . .
         CMD ["sh"]
         EOF
-        cat test_dir/Dockerfile
-        
-        # Test 4: Pull Docker image for testing
-        echo ""
-        echo "=========================================="
-        echo "Test 4: Pull test Docker image"
-        echo "=========================================="
         docker pull alpine:latest
-        echo "✅ Alpine image pulled successfully"
-        
-        # Test 5: Scan-only mode (no AI)
-        echo ""
-        echo "=========================================="
-        echo "Test 5: Scan-only mode (no AI)"
-        echo "=========================================="
-        docksec test_dir/Dockerfile --scan-only -i alpine:latest || echo "Scan completed"
-        
-        # Test 6: Image-only scan
-        echo ""
-        echo "=========================================="
-        echo "Test 6: Image-only scan"
-        echo "=========================================="
-        docksec --image-only -i alpine:latest || echo "Image scan completed"
-        
-        # Test 7: Verify results directory was created
-        echo ""
-        echo "=========================================="
-        echo "Test 7: Checking results"
-        echo "=========================================="
-        if [ -d "results" ]; then
-          echo "✅ Results directory created successfully"
-          echo "Contents:"
-          ls -lh results/ 2>/dev/null || echo "No files in results (may be expected)"
-        else
-          echo "⚠️  Results directory not found"
-          echo "This may be expected if scans failed due to missing API key"
-        fi
-        
-        # Cleanup
-        echo ""
-        echo "=========================================="
-        echo "Cleanup"
-        echo "=========================================="
+        docksec test_dir/Dockerfile --scan-only -i alpine:latest
         rm -rf test_dir
-        echo "Test directory cleaned up"
-        
-        echo ""
-        echo "=========================================="
-        echo "✅ All DockSec CLI tests passed!"
-        echo "=========================================="
-        echo ""
-        echo "Summary:"
-        echo "- Version flag: ✅ Working"
-        echo "- Help command: ✅ Working"
-        echo "- CLI installation: ✅ Working"
-        echo "- Scan modes: ⚠️  Working (API key warnings expected)"
-        echo ""
-        echo "Note: Full AI features require OPENAI_API_KEY to be set in GitHub Secrets"
-    
-    - name: Upload coverage report
+
+    - name: Run image-only scan
+      run: |
+        docksec --image-only -i alpine:latest
+
+    - name: Upload scan results
       uses: actions/upload-artifact@v4
+      if: always()
       with:
-        name: coverage-report
-        path: coverage.xml
+        name: scan-results
+        path: results/
         if-no-files-found: ignore

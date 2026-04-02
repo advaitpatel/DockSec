@@ -35,12 +35,14 @@ class DockerSecurityScanner:
         """
         if not file_path:
             raise ValueError("File path cannot be empty")
-        
+
+        # Check the raw string before resolution — Path.resolve() removes '..'
+        # so checking the resolved path would silently allow traversal attempts.
+        if '..' in file_path:
+            raise ValueError(f"Invalid path: path traversal detected in '{file_path}'")
+
         try:
             path = Path(file_path).resolve()
-            # Check for path traversal (parent directory access)
-            if '..' in str(path):
-                raise ValueError(f"Invalid path: path traversal detected in '{file_path}'")
             return path
         except (OSError, ValueError) as e:
             raise ValueError(f"Invalid file path '{file_path}': {str(e)}")
@@ -71,11 +73,10 @@ class DockerSecurityScanner:
         if '..' in image_name or image_name.startswith('/'):
             raise ValueError(f"Image name contains path traversal or absolute path: '{image_name}'")
         
-        # Check for dangerous characters that could be used in command injection
-        dangerous_chars = [';', '&', '|', '`', '$', '(', ')', '<', '>', '\n', '\r']
-        for char in dangerous_chars:
-            if char in image_name:
-                raise ValueError(f"Image name contains invalid character: '{char}'")
+        # Whitelist: Docker image names allow alphanumeric, '/', ':', '-', '_', '.', '@'
+        # Anything outside this set (spaces, shell metacharacters, etc.) is rejected.
+        if not re.match(r'^[a-zA-Z0-9/:._\-@]+$', image_name):
+            raise ValueError(f"Image name contains invalid characters: '{image_name}'")
         
         return image_name.strip()
     

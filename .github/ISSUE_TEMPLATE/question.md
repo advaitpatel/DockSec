@@ -7,11 +7,11 @@ assignees: ''
 
 ---
 
-## ❓ Question
+## Question
 
 A clear and concise question.
 
-## 🔍 Context
+## Context
 
 **What are you trying to accomplish?**
 
@@ -23,20 +23,19 @@ Describe what you're working on and what you're trying to achieve with DockSec.
 - Checked documentation: [link]
 - Searched issues: [link]
 
-## 📊 Environment (if relevant)
+## Environment (if relevant)
 
-- DockSec version: 
-- Operating System: 
-- Python version: 
+- DockSec version:
+- Operating System:
+- Python version:
 
-## 📝 Additional Information
+## Additional Information
 
-Any additional information that might help us answer your question.
+Any additional information that might help answer the question.
 
 ---
 
-**Note**: Before asking, please check:
+Before asking, please check:
 - [ ] [README documentation](https://github.com/advaitpatel/DockSec/blob/main/README.md)
-- [ ] [Troubleshooting guide](https://github.com/advaitpatel/DockSec/blob/main/README.md#-troubleshooting)
 - [ ] [Existing issues](https://github.com/advaitpatel/DockSec/issues)
 - [ ] [Examples directory](https://github.com/advaitpatel/DockSec/tree/main/examples)

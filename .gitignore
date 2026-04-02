@@ -193,3 +193,6 @@ SESSION_SUMMARY.md
 CURSOR_CONFIGURATION.md
 
 # Internal/maintainer documentation (not for public repository)
+
+# Claude Code project instructions (local only, not for public repository)
+CLAUDE.md

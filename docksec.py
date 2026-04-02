@@ -6,7 +6,7 @@ import argparse
 from typing import NoReturn, Optional
 
 # Version - keep in sync with setup.py
-__version__ = "2026.2.23"
+__version__ = "2026.4.2"
 
 def get_version():
     """Get version from setup.py if available, otherwise use hardcoded version."""

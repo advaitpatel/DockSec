@@ -4,6 +4,7 @@ import subprocess
 import csv
 import pandas as pd
 import logging
+import html
 from typing import List, Tuple, Dict, Optional
 from datetime import datetime
 from fpdf import FPDF
@@ -1230,25 +1231,17 @@ class DockerSecurityScanner:
     def _escape_html(self, text: str) -> str:
         """
         Escape HTML special characters in text.
-        
+
         Args:
             text: Text to escape
-            
+
         Returns:
             HTML-escaped text
         """
         if not text:
             return ""
-        
-        html_escape_table = {
-            "&": "&amp;",
-            '"': "&quot;",
-            "'": "&#x27;",
-            ">": "&gt;",
-            "<": "&lt;",
-        }
-        
-        return "".join(html_escape_table.get(c, c) for c in str(text))
+
+        return html.escape(str(text), quote=True)
 
 def main():
     """Main function to run the security scanner."""

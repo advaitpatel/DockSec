@@ -21,6 +21,17 @@ def check_command_exists(command):
     """Check if a command exists in the system PATH."""
     return shutil.which(command) is not None
 
+def check_docker_model_runner():
+    """Verify that Docker Model Runner is available."""
+    try:
+        result = subprocess.run(
+            ["docker", "model", "list"],
+            capture_output=True, text=True
+        )
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
 def run_command(command, shell=False):
     """Run a command and return its output."""
     try:
@@ -187,6 +198,13 @@ def main():
             print(f"Trivy version: {version.strip()}")
     else:
         print("Failed to install Trivy")
+
+    # Check Docker Model Runner
+    print("\nChecking Docker Model Runner...")
+    if check_docker_model_runner():
+        print("Docker Model Runner is available.")
+    else:
+        print("Docker Model Runner is not available (requires Docker Desktop 4.40+).")
 
 if __name__ == "__main__":
     main()

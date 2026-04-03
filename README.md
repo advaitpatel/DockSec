@@ -85,7 +85,7 @@ docksec Dockerfile --scan-only
 ## Features
 
 - Smart Analysis: AI explains what vulnerabilities mean for your specific setup
-- Multiple LLM Providers: Support for OpenAI, Anthropic Claude, Google Gemini, and Ollama (local models)
+- Multiple LLM Providers: Support for OpenAI, Anthropic Claude, Google Gemini, Ollama (local models), and Docker Model Runner
 - Multiple Scanners: Integrates Trivy, Hadolint, and Docker Scout
 - Security Scoring: Get a 0-100 score to track improvements
 - Multiple Formats: Export reports as HTML, PDF, JSON, or CSV
@@ -131,6 +131,17 @@ export LLM_MODEL="llama3.1"
 export OLLAMA_BASE_URL="http://localhost:11434"
 ```
 
+### Docker Model Runner
+```bash
+# Start a model via Docker Model Runner (Requires Docker Desktop 4.40+)
+docker model pull ai/smollm2
+docker model run ai/smollm2
+
+# Run DockSec
+export LLM_PROVIDER="docker-model-runner"
+export LLM_MODEL="ai/smollm2"
+```
+
 **External tools** (optional, for full scanning):
 ```bash
 # Install Trivy and Hadolint
@@ -172,7 +183,7 @@ docksec Dockerfile --provider ollama --model llama3.1
 | `dockerfile` | Path to Dockerfile |
 | `-i, --image` | Docker image to scan |
 | `-o, --output` | Output file path |
-| `--provider` | LLM provider (openai, anthropic, google, ollama) |
+| `--provider` | LLM provider (openai, anthropic, google, ollama, docker-model-runner) |
 | `--model` | Model name (e.g., gpt-4o, claude-3-5-sonnet-20241022) |
 | `--ai-only` | AI analysis only (no scanning) |
 | `--scan-only` | Scanning only (no AI) |
@@ -184,7 +195,7 @@ Create a `.env` file for advanced configuration:
 
 ```bash
 # LLM Provider Configuration
-LLM_PROVIDER=openai                    # Options: openai, anthropic, google, ollama
+LLM_PROVIDER=openai                    # Options: openai, anthropic, google, ollama, docker-model-runner
 LLM_MODEL=gpt-4o                       # Model to use
 LLM_TEMPERATURE=0.0                    # Temperature (0-1)
 
@@ -239,6 +250,7 @@ DockSec runs security scanners locally, then uses AI to:
 - **Anthropic**: Claude 3.5 Sonnet, Claude 3 Opus
 - **Google**: Gemini 1.5 Pro, Gemini 1.5 Flash
 - **Ollama**: Llama 3.1, Mistral, Phi-3, and other local models
+- **Docker Model Runner**: SmolLM2, Llama 3.2, Phi-3, and other local models
 
 All scanning happens on your machine. Only scan results (not your code) are sent to the AI provider when using AI features.
 
@@ -274,7 +286,7 @@ Quick links:
 → Set appropriate API key for your provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY) or use `--scan-only` mode
 
 **"Unsupported LLM provider"**  
-→ Valid providers: openai, anthropic, google, ollama. Set with `--provider` flag or LLM_PROVIDER env var
+→ Valid providers: openai, anthropic, google, ollama, docker-model-runner. Set with `--provider` flag or LLM_PROVIDER env var
 
 **"Hadolint not found"**  
 → Run `python -m docksec.setup_external_tools`

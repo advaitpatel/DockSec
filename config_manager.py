@@ -28,7 +28,7 @@ class DocksecConfig:
     - Scan parameters
     
     Attributes:
-        llm_provider: LLM provider to use (openai, anthropic, google, ollama)
+        llm_provider: LLM provider to use (openai, anthropic, google, ollama, docker-model-runner)
         openai_api_key: OpenAI API key for AI features
         anthropic_api_key: Anthropic API key for Claude
         google_api_key: Google API key for Gemini
@@ -120,7 +120,7 @@ class DocksecConfig:
             ValueError: If configuration values are invalid
         """
         # Validate LLM provider
-        valid_providers = ['openai', 'anthropic', 'google', 'ollama']
+        valid_providers = ['openai', 'anthropic', 'google', 'ollama', 'docker-model-runner']
         if self.llm_provider not in valid_providers:
             raise ValueError(f"Invalid llm_provider: {self.llm_provider}. Valid options: {valid_providers}")
         
@@ -233,6 +233,9 @@ Note: You can use scan-only mode (--scan-only) without an API key.
         
         elif self.llm_provider == "ollama":
             return ""
+        
+        elif self.llm_provider == "docker-model-runner":
+            return "no-key-required"
         
         else:
             raise ValueError(f"Unsupported LLM provider: {self.llm_provider}")

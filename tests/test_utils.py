@@ -83,6 +83,35 @@ class TestUtils(unittest.TestCase):
         with self.assertRaises(EnvironmentError):
             get_llm()
 
+    @patch('utils.ChatOpenAI')
+    @patch('config_manager.get_config')
+    def test_get_llm_docker_model_runner(self, mock_get_config, mock_chatopenai):
+        """Test LLM initialization for Docker Model Runner."""
+        from utils import get_llm
+
+        mock_config = Mock()
+        mock_config.llm_provider = "docker-model-runner"
+        mock_config.llm_model = "ai/smollm2"
+        mock_config.llm_temperature = 0.0
+        mock_config.timeout_llm = 60
+        mock_config.max_retries_llm = 2
+        mock_get_config.return_value = mock_config
+
+        mock_llm_instance = Mock()
+        mock_chatopenai.return_value = mock_llm_instance
+
+        llm = get_llm()
+
+        mock_chatopenai.assert_called_once_with(
+            model="ai/smollm2",
+            base_url="http://localhost:12434/engines/llama.cpp/v1",
+            api_key="no-key-required",
+            temperature=0.0,
+            request_timeout=60,
+            max_retries=2
+        )
+        self.assertIsNotNone(llm)
+
 
 if __name__ == '__main__':
     unittest.main()

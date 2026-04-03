@@ -139,6 +139,7 @@ def get_llm() -> Union[ChatOpenAI, 'ChatAnthropic', 'ChatGoogleGenerativeAI', 'C
     - Anthropic (claude-3-5-sonnet-20241022, claude-3-opus-20240229)
     - Google (gemini-1.5-pro, gemini-1.5-flash)
     - Ollama (llama3.1, mistral, phi3, local models)
+    - docker-model-runner (smollm2, llama3.2, phi3)
     
     Returns:
         LLM instance (ChatOpenAI, ChatAnthropic, ChatGoogleGenerativeAI, or ChatOllama)
@@ -232,8 +233,20 @@ def get_llm() -> Union[ChatOpenAI, 'ChatAnthropic', 'ChatGoogleGenerativeAI', 'C
             logger.info(f"Ollama LLM initialized successfully with base URL: {config.ollama_base_url}")
             return llm
         
+        elif provider == "docker-model-runner":
+            llm = ChatOpenAI(
+                model=model,
+                base_url="http://localhost:12434/engines/llama.cpp/v1",
+                api_key="no-key-required",
+                temperature=temperature,
+                request_timeout=timeout,
+                max_retries=max_retries
+            )
+            logger.info("Docker Model Runner LLM initialized successfully")
+            return llm
+        
         else:
-            raise ValueError(f"Unsupported LLM provider: {provider}. Supported: openai, anthropic, google, ollama")
+            raise ValueError(f"Unsupported LLM provider: {provider}. Supported: openai, anthropic, google, ollama, docker-model-runner")
         
     except Exception as e:
         logger.error(f"Failed to initialize LLM: {str(e)}")
@@ -243,8 +256,8 @@ def get_llm() -> Union[ChatOpenAI, 'ChatAnthropic', 'ChatGoogleGenerativeAI', 'C
         console.print("2. Check your internet connection")
         console.print("3. Verify your account has available credits")
         console.print("4. Try using --scan-only mode if you don't need AI features")
-        console.print(f"5. Current provider: {config.llm_provider if 'config' in locals() else 'unknown'}")
-        console.print("6. Set LLM_PROVIDER environment variable to change provider (openai/anthropic/google/ollama)")
+        console.print("5. Current provider: {config.llm_provider if 'config' in locals() else 'unknown'}")
+        console.print("6. Set LLM_PROVIDER environment variable to change provider (openai/anthropic/google/ollama/docker-model-runner)")
         raise
 
 

@@ -11,6 +11,7 @@ import sys
 import re
 import shlex
 from pathlib import Path
+import html
 from config import RESULTS_DIR
 from config import docker_score_prompt
 from utils import ScoreResponse, get_llm, print_section, get_custom_logger
@@ -1240,15 +1241,7 @@ class DockerSecurityScanner:
         if not text:
             return ""
         
-        html_escape_table = {
-            "&": "&amp;",
-            '"': "&quot;",
-            "'": "&#x27;",
-            ">": "&gt;",
-            "<": "&lt;",
-        }
-        
-        return "".join(html_escape_table.get(c, c) for c in str(text))
+        return html.escape(str(text), quote=True)
 
 def main():
     """Main function to run the security scanner."""

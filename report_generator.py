@@ -16,6 +16,7 @@ import json
 import csv
 import re
 import logging
+import html
 from typing import Dict, List, Optional
 from datetime import datetime
 from fpdf import FPDF
@@ -466,16 +467,8 @@ class ReportGenerator:
         """
         if not text:
             return ""
-        
-        html_escape_table = {
-            "&": "&amp;",
-            '"': "&quot;",
-            "'": "&#x27;",
-            ">": "&gt;",
-            "<": "&lt;",
-        }
-        
-        return "".join(html_escape_table.get(c, c) for c in str(text))
+
+        return html.escape(text, quote=True)
     
     def _count_by_severity(self, vulnerabilities: List[Dict]) -> Dict[str, int]:
         """

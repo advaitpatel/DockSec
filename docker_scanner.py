@@ -10,6 +10,7 @@ from fpdf import FPDF
 import sys
 import re
 import shlex
+import html
 from pathlib import Path
 from config import RESULTS_DIR
 from config import docker_score_prompt
@@ -1239,16 +1240,8 @@ class DockerSecurityScanner:
         """
         if not text:
             return ""
-        
-        html_escape_table = {
-            "&": "&amp;",
-            '"': "&quot;",
-            "'": "&#x27;",
-            ">": "&gt;",
-            "<": "&lt;",
-        }
-        
-        return "".join(html_escape_table.get(c, c) for c in str(text))
+
+        return html.escape(text, quote=True)
 
 def main():
     """Main function to run the security scanner."""

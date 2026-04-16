@@ -35,7 +35,7 @@ setup(
         "colorama==0.4.6",
         "rich==13.9.4",
         "fpdf2==2.8.1",
-        "tenacity==9.0.0",
+        "tenacity==9.1.4",
         "setuptools>=65.0.0",
     ],
     classifiers=[

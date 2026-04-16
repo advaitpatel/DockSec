@@ -106,16 +106,17 @@ class DockerSecurityScanner:
         
         return ','.join(severity_list)
     
-    def __init__(self, dockerfile_path: str, image_name: str, results_dir: str = RESULTS_DIR):
+    def __init__(self, dockerfile_path: str, image_name: str, results_dir: str = RESULTS_DIR, scan_only: bool = False):
         """
         Initialize the Docker Security Scanner with a Dockerfile path and image name.
         Verifies that required tools are installed and the specified files exist.
-        
+
         Args:
             dockerfile_path: Path to the Dockerfile to scan
             image_name: Name of the Docker image to scan
             results_dir: Directory to store scan results
-        
+            scan_only: When True, skip LLM initialization and use local scoring only
+
         Raises:
             ValueError: If required tools are missing or specified files don't exist
         """
@@ -130,11 +131,15 @@ class DockerSecurityScanner:
         self.required_tools = ['docker', 'trivy']
         if dockerfile_path:
             self.required_tools.append('hadolint')
-        
+
         self.RESULTS_DIR = results_dir
+        self.scan_only = scan_only
         self.analysis_score = None  # Initialize to avoid AttributeError when accessed before calculation
-        llm = get_llm()
-        self.score_chain = docker_score_prompt | llm.with_structured_output(ScoreResponse, method="json_mode")
+        if scan_only:
+            self.score_chain = None
+        else:
+            llm = get_llm()
+            self.score_chain = docker_score_prompt | llm.with_structured_output(ScoreResponse, method="json_mode")
         
         # Ensure results directory exists
         os.makedirs(self.RESULTS_DIR, exist_ok=True)
@@ -713,8 +718,14 @@ class DockerSecurityScanner:
                     y_start = self.get_y()
                     self.cell(title_w, 7, title)
                     self.set_font('Arial', '', 10)
+                    
+                    # Calculate available width for content to avoid horizontal space errors
+                    available_w = self.w - self.l_margin - self.r_margin - title_w
+                    if available_w < 10:  # Minimum fallback width
+                        available_w = 10
+                        
                     self.set_xy(x_start + title_w, y_start)
-                    self.multi_cell(0, 7, content)
+                    self.multi_cell(available_w, 7, str(content))
                     self.ln(2)
                 
                 def add_section_header(self, title):
@@ -905,10 +916,14 @@ class DockerSecurityScanner:
             BarColumn(),
             console=None
         ) as progress:
-            # Calculate security score
-            score_task = progress.add_task("[cyan]Calculating security score...", total=1)
-            self.analysis_score = self.get_security_score(results)
-            progress.update(score_task, advance=1)
+            # Calculate security score if not already set
+            if self.analysis_score is None:
+                score_task = progress.add_task("[cyan]Calculating security score...", total=1)
+                self.analysis_score = self.get_security_score(results)
+                progress.update(score_task, advance=1)
+            else:
+                score_task = progress.add_task("[cyan]Using already calculated security score...", total=1)
+                progress.update(score_task, advance=1)
 
             report_paths = {
                 'json': '',
@@ -954,20 +969,76 @@ class DockerSecurityScanner:
         
         return report_paths
     
+    def _calculate_local_score(self, results: Dict) -> float:
+        """
+        Calculate a security score locally without any LLM call.
+        Used when scan_only=True. Mirrors the weighted logic in SecurityScoreCalculator.
+
+        Weights: vulnerabilities 50%, dockerfile quality 30%, configuration 20%.
+        """
+        # Dockerfile quality score
+        if results.get('dockerfile_scan', {}).get('success', False):
+            dockerfile_score = 100.0
+        else:
+            output = results.get('dockerfile_scan', {}).get('output', '')
+            issue_count = len(output.split('\n')) if output else 0
+            dockerfile_score = max(0.0, 100.0 - (issue_count * 5))
+
+        # Vulnerability score — weighted by severity
+        vulnerabilities = results.get('json_data', [])
+        if not vulnerabilities:
+            vuln_score = 100.0
+        else:
+            critical = sum(1 for v in vulnerabilities if v.get('Severity') == 'CRITICAL')
+            high = sum(1 for v in vulnerabilities if v.get('Severity') == 'HIGH')
+            medium = sum(1 for v in vulnerabilities if v.get('Severity') == 'MEDIUM')
+            low = sum(1 for v in vulnerabilities if v.get('Severity') == 'LOW')
+            deduction = (critical * 10) + (high * 5) + (medium * 2) + (low * 1)
+            vuln_score = max(0.0, 100.0 - deduction)
+
+        # Configuration score — static Dockerfile checks
+        from score_calculator import SecurityScoreCalculator
+        config_score = SecurityScoreCalculator._calculate_config_score(self, results)
+
+        overall = (dockerfile_score * 0.3) + (vuln_score * 0.5) + (config_score * 0.2)
+        score = round(max(0.0, overall), 1)
+
+        print(f"Security Score: {score}/100")
+        if score >= 90:
+            print("[EXCELLENT] Excellent security posture!")
+        elif score >= 70:
+            print("[GOOD] Good security, but some improvements recommended")
+        elif score >= 50:
+            print("[FAIR] Fair security - multiple issues need attention")
+        else:
+            print("[POOR] Poor security - immediate action required")
+
+        return score
+
     def get_security_score(self, results: Dict) -> float:
         """
         Calculate the security score based on scan results.
-        
+
+        Uses LLM-based scoring when available. Falls back to local static
+        scoring when scan_only=True or if the LLM call fails (e.g., quota exceeded).
+
         Args:
             results: The scan results to calculate the score from
-            
+
         Returns:
             The calculated security score
         """
+        if self.score_chain is None:
+            return self._calculate_local_score(results)
 
-        score = self.score_chain.invoke({"results": results})
-        print(f"Security Score: {score.score}")
-        return score.score
+        try:
+            score = self.score_chain.invoke({"results": results})
+            print(f"Security Score: {score.score}")
+            return score.score
+        except Exception as e:
+            logger.warning(f"AI scoring failed: {e}. Falling back to local scoring.")
+            print(f"AI scoring unavailable: {e}. Falling back to local scoring.")
+            return self._calculate_local_score(results)
     
     def save_results_to_html(self, results: Dict) -> str:
         """

@@ -154,7 +154,7 @@ def main() -> None:
             
             # Initialize the scanner
             dockerfile_path = args.dockerfile if run_dockerfile_analysis else None
-            scanner = DockerSecurityScanner(dockerfile_path, args.image)
+            scanner = DockerSecurityScanner(dockerfile_path, args.image, scan_only=args.scan_only or args.image_only)
             
             # Run appropriate scan based on mode
             if args.image_only:
@@ -166,7 +166,7 @@ def main() -> None:
                 results = scanner.run_full_scan("CRITICAL,HIGH")
             
             # Calculate security score
-            score = scanner.get_security_score(results)
+            scanner.analysis_score = scanner.get_security_score(results)
             
             # Generate all reports
             scanner.generate_all_reports(results)

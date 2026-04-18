@@ -4,6 +4,7 @@ import subprocess
 import csv
 import pandas as pd
 import logging
+import html
 from typing import List, Tuple, Dict, Optional
 from datetime import datetime
 from fpdf import FPDF
@@ -1311,15 +1312,10 @@ class DockerSecurityScanner:
         if not text:
             return ""
         
-        html_escape_table = {
-            "&": "&amp;",
-            '"': "&quot;",
-            "'": "&#x27;",
-            ">": "&gt;",
-            "<": "&lt;",
-        }
+        if not isinstance(text, str):
+            text = str(text)
         
-        return "".join(html_escape_table.get(c, c) for c in str(text))
+        return html.escape(text, quote=True)
 
 def main():
     """Main function to run the security scanner."""

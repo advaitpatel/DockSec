@@ -59,7 +59,7 @@
         }
       ],
       "default": null,
-      "description": "Report formats to write. Any of: json, csv, pdf, html.",
+      "description": "Report formats to write. Any of: json, csv, pdf, html, markdown.",
       "title": "Formats"
     },
     "output_dir": {

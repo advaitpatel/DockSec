@@ -29,7 +29,7 @@ inputs:
     description: 'Exit non-zero if any finding is at or above this severity (CRITICAL, HIGH, MEDIUM, or LOW)'
     required: false
   format:
-    description: 'Comma-separated report formats to write: json, csv, pdf, html (default: all)'
+    description: 'Comma-separated report formats to write: json, csv, pdf, html, markdown (default: all)'
     required: false
   sarif:
     description: 'Write a SARIF 2.1.0 report for GitHub Code Scanning'

@@ -9,6 +9,9 @@ import urllib.request
 import stat
 import json
 
+HTTP_TIMEOUT = 30
+
+
 def get_os_type():
     """Determine the operating system type."""
     system = platform.system().lower()
@@ -19,6 +22,11 @@ def get_os_type():
 def check_command_exists(command):
     """Check if a command exists in the system PATH."""
     return shutil.which(command) is not None
+
+def _download(url, dest, timeout=HTTP_TIMEOUT):
+    """Download a URL to a local path with a timeout."""
+    with urllib.request.urlopen(url, timeout=timeout) as resp, open(dest, "wb") as out:
+        shutil.copyfileobj(resp, out)
 
 def run_command(command, shell=False):
     """Run a command and return its output."""
@@ -39,7 +47,7 @@ def get_latest_trivy_version():
     """Get the latest Trivy release version from GitHub API."""
     try:
         url = "https://api.github.com/repos/aquasecurity/trivy/releases/latest"
-        with urllib.request.urlopen(url) as response:
+        with urllib.request.urlopen(url, timeout=HTTP_TIMEOUT) as response:
             data = json.loads(response.read().decode())
             return data["tag_name"].lstrip('v')
     except Exception as e:
@@ -65,7 +73,7 @@ def install_hadolint():
             download_path = Path(os.environ.get("USERPROFILE", "")) / "scoop" / "shims" / "hadolint.exe"
             download_path.parent.mkdir(parents=True, exist_ok=True)
             
-            urllib.request.urlretrieve(url, str(download_path))
+            _download(url, str(download_path))
             
         elif os_type == "mac":
             success, _ = run_command(["brew", "install", "hadolint"])
@@ -78,7 +86,7 @@ def install_hadolint():
             url = "https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64"
             download_path = Path("/usr/local/bin/hadolint")
             
-            urllib.request.urlretrieve(url, str(download_path))
+            _download(url, str(download_path))
             # Make the binary executable
             os.chmod(str(download_path), stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
             
@@ -119,7 +127,7 @@ def install_trivy():
 
             # Download and extract
             print(f"Downloading Trivy v{version}...")
-            urllib.request.urlretrieve(url, str(zip_path))
+            _download(url, str(zip_path))
 
             # Extract the zip file
             with zipfile.ZipFile(str(zip_path), 'r') as zip_ref:

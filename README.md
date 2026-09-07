@@ -53,7 +53,7 @@ DockSec follows a four-stage pipeline:
 1. **Scan**: Runs Trivy, Hadolint, and Docker Scout locally on your environment.
 2. **Analyze**: AI correlates findings across all scanners to remove noise and assess real-world impact.
 3. **Recommend**: Generates human-readable explanations and specific remediation steps.
-4. **Report**: Exports actionable results as HTML, PDF, JSON, CSV, SARIF, and CycloneDX SBOM.
+4. **Report**: Exports actionable results as HTML, PDF, JSON, CSV, Markdown, SARIF, and CycloneDX SBOM.
 
 ---
 
@@ -169,6 +169,9 @@ docksec -i myapp:latest --image-only --fail-on high
 
 # Write only the report formats you want, to a directory of your choice
 docksec Dockerfile --scan-only --format json,html --output-dir ./reports
+
+# Write a Markdown report for posting directly into a pull request comment
+docksec Dockerfile --scan-only --format markdown
 
 # Print results as JSON to stdout for scripts and CI pipelines
 docksec -i myapp:latest --image-only --json
@@ -399,6 +402,7 @@ By default every scan writes four report files; use `--format` to pick a subset:
 - **pdf**: A portable, presentation-ready document.
 - **json**: Full, machine-readable scan data (same shape as `--json` stdout output).
 - **csv**: A spreadsheet-ready table of individual vulnerabilities.
+- **markdown**: A lightweight, readable report (severity summary + vulnerability table with fixed versions) that renders natively in pull request comments and CI job summaries. Opt-in: add `markdown` to `--format`; it is not written by default.
 
 > Note on CSV behavior: with zero vulnerabilities, DockSec still writes a header-only
 > CSV (column names, no rows) so downstream automation never breaks on a missing or

@@ -184,7 +184,7 @@ def main() -> None:
     parser.add_argument('--skip-ai-scoring', action='store_true', default=None, help='Skip AI-based security scoring (use local scoring only)')
     parser.add_argument('--severity', help='Comma-separated severity levels to scan for (default: CRITICAL,HIGH; or set DOCKSEC_DEFAULT_SEVERITY)')
     parser.add_argument('--fail-on', dest='fail_on', metavar='SEVERITY', help='Exit with code 1 if any finding is at or above this severity (CRITICAL, HIGH, MEDIUM, or LOW)')
-    parser.add_argument('--format', dest='format', help='Comma-separated report formats to write: json, csv, pdf, html (default: all)')
+    parser.add_argument('--format', dest='format', help='Comma-separated report formats to write: json, csv, pdf, html, markdown (default: all)')
     parser.add_argument('--output-dir', dest='output_dir', metavar='DIR', help='Directory to write reports to (default: ~/.docksec/results or DOCKSEC_RESULTS_DIR)')
     parser.add_argument('--json', dest='json_stdout', action='store_true', help='Print scan results as JSON to stdout (no report files unless --format is also given)')
     parser.add_argument('--sarif', dest='sarif', action='store_true', help='Write a SARIF 2.1.0 report for GitHub Code Scanning and other SARIF-compatible tools')
@@ -298,7 +298,7 @@ def main() -> None:
 
     # Resolve report formats and output directory.
     from docksec.config import RESULTS_DIR
-    valid_formats = ["json", "csv", "pdf", "html"]
+    valid_formats = ["json", "csv", "pdf", "html", "markdown"]
     report_formats = None  # None = write all formats (default)
     if args.format:
         requested = [f.strip().lower() for f in args.format.split(',') if f.strip()]

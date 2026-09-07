@@ -96,7 +96,7 @@ class DocksecFileConfig(BaseModel):
     )
     formats: list[str] | None = Field(
         default=None,
-        description="Report formats to write. Any of: json, csv, pdf, html.",
+        description="Report formats to write. Any of: json, csv, pdf, html, markdown.",
     )
     output_dir: str | None = Field(
         default=None,

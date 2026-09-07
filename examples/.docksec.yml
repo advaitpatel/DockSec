@@ -20,7 +20,7 @@ severity: CRITICAL,HIGH
 # Valid: CRITICAL, HIGH, MEDIUM, LOW
 fail_on: HIGH
 
-# Report formats to write. Any of: json, csv, pdf, html
+# Report formats to write. Any of: json, csv, pdf, html, markdown
 formats:
   - json
   - html

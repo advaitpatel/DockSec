@@ -2,6 +2,15 @@
 
 All notable changes to DockSec are documented in this file.
 
+## Unreleased
+
+### Added
+
+- Markdown report format (`--format markdown`): a lightweight `.md` report with
+  severity counts and a vulnerability table (including fixed versions) that
+  renders natively in pull request comments and CI/CD job summaries. Opt-in, so
+  the default report output is unchanged.
+
 ## 2026.8.19
 
 Adds a committed configuration file so a team's scan policy lives in the repository

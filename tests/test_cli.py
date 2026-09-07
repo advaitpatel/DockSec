@@ -237,6 +237,31 @@ class TestCLI(unittest.TestCase):
         _, gen_kwargs = scanner.generate_all_reports.call_args
         self.assertEqual(gen_kwargs.get('formats'), ['json', 'html'])
 
+    @patch('sys.argv', ['docksec', '--image-only', '-i', 'test:latest',
+                        '--format', 'markdown,json', '--output-dir', '/tmp/docksec_test_out'])
+    @patch('docksec.docker_scanner.DockerSecurityScanner')
+    def test_markdown_format_threads_to_reports(self, mock_scanner_class):
+        """--format markdown is accepted and reaches the report call."""
+        from docksec.cli import main
+
+        scanner = Mock()
+        mock_scanner_class.return_value = scanner
+        scanner.run_image_only_scan.return_value = {
+            'json_data': [],
+            'dockerfile_scan': {'skipped': True},
+            'image_scan': {'skipped': False},
+            'scan_mode': 'image_only',
+        }
+        scanner.get_security_score.return_value = 90.0
+        scanner.generate_all_reports.return_value = {'markdown': 'x'}
+        scanner.RESULTS_DIR = '/tmp/docksec_test_out'
+
+        main()
+
+        # markdown is normalized to canonical order json,markdown and passed through.
+        _, gen_kwargs = scanner.generate_all_reports.call_args
+        self.assertEqual(gen_kwargs.get('formats'), ['json', 'markdown'])
+
     @patch('sys.argv', ['docksec', '--image-only', '-i', 'docksec_missing_img_xyz:latest', '--quiet', '--no-color'])
     def test_quiet_and_no_color_flags_are_accepted(self):
         """--quiet and --no-color must parse. Using a missing image makes the run

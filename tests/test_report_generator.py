@@ -364,6 +364,84 @@ def test_html_omits_ai_section_without_findings(tmp_path):
     assert "<h2>AI Dockerfile Analysis</h2>" not in content
 
 
+# ---------- MARKDOWN REPORT TESTS ----------
+
+
+def test_markdown_report_file_is_created(
+    tmp_path, sample_vulnerabilities, sample_scan_info
+):
+    rg = ReportGenerator(image_name="test-image", results_dir=str(tmp_path))
+    results = make_results(sample_vulnerabilities, sample_scan_info)
+    output_path = rg.generate_markdown_report(results)
+    assert os.path.exists(output_path)
+    assert output_path.endswith(".md")
+    # Verify it's in the correct directory
+    assert os.path.dirname(output_path) == str(tmp_path)
+
+
+def test_markdown_report_has_severity_counts(
+    tmp_path, sample_vulnerabilities, sample_scan_info
+):
+    rg = ReportGenerator(image_name="test-image", results_dir=str(tmp_path))
+    results = make_results(sample_vulnerabilities, sample_scan_info)
+    output_path = rg.generate_markdown_report(results)
+    with open(output_path, encoding="utf-8") as f:
+        content = f.read()
+    assert "## Severity Summary" in content
+    assert "| CRITICAL | 1 |" in content
+    # Zero-count severities are omitted.
+    assert "| HIGH | 0 |" not in content
+
+
+def test_markdown_report_table_includes_fixed_versions(
+    tmp_path, sample_vulnerabilities, sample_scan_info
+):
+    vulns = [dict(sample_vulnerabilities[0], FixedVersion="1.1.0")]
+    rg = ReportGenerator(image_name="test-image", results_dir=str(tmp_path))
+    results = make_results(vulns, sample_scan_info)
+    output_path = rg.generate_markdown_report(results)
+    with open(output_path, encoding="utf-8") as f:
+        content = f.read()
+    assert (
+        "| ID | Severity | Package | Installed Version | Fixed Version | Title |"
+        in content
+    )
+    assert "CVE-2023-1234" in content
+    assert "openssl" in content
+    assert "1.1.0" in content
+
+
+def test_markdown_report_escapes_table_special_characters(
+    tmp_path, sample_scan_info
+):
+    vulns = [
+        {
+            "VulnerabilityID": "CVE-2024-0001",
+            "Severity": "HIGH",
+            "PkgName": "libfoo",
+            "InstalledVersion": "1.0",
+            "FixedVersion": "1.1",
+            "Title": "RCE in parser | remote execution",
+        }
+    ]
+    rg = ReportGenerator(image_name="test-image", results_dir=str(tmp_path))
+    results = make_results(vulns, sample_scan_info)
+    output_path = rg.generate_markdown_report(results)
+    with open(output_path, encoding="utf-8") as f:
+        content = f.read()
+    # The pipe in the title must be escaped so the table row stays intact.
+    assert "RCE in parser \\| remote execution" in content
+
+
+def test_markdown_report_empty_vulnerabilities(tmp_path, sample_scan_info):
+    rg = ReportGenerator(image_name="test-image", results_dir=str(tmp_path))
+    results = make_results([], sample_scan_info)
+    output_path = rg.generate_markdown_report(results)
+    with open(output_path, encoding="utf-8") as f:
+        content = f.read()
+    assert "No vulnerabilities found." in content
+
+
 # ---------- FORMAT SELECTION TESTS ----------
 
 
@@ -396,6 +474,22 @@ def test_generate_all_reports_empty_formats_writes_nothing(tmp_path, sample_scan
     results = make_results([], sample_scan_info)
     paths = rg.generate_all_reports(results, formats=[])
     assert paths == {}
+
+
+def test_generate_all_reports_markdown_is_opt_in(tmp_path):
+    rg = ReportGenerator(image_name="test-image", results_dir=str(tmp_path))
+    results = make_results([])
+
+    # The default bundle keeps the original four formats: markdown is opt-in.
+    default_paths = rg.generate_all_reports(results)
+    assert set(default_paths) == {"json", "csv", "pdf", "html"}
+
+    # Markdown is written only when explicitly requested, alone or alongside
+    # the other formats.
+    md_paths = rg.generate_all_reports(results, formats=["markdown"])
+    assert set(md_paths) == {"markdown"}
+    combined = rg.generate_all_reports(results, formats=["json", "markdown"])
+    assert set(combined) == {"json", "markdown"}
 
 
 # ---------- SARIF REPORT TESTS ----------

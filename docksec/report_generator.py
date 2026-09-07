@@ -6,6 +6,7 @@ This module handles the generation of security scan reports in multiple formats:
 - CSV: Tabular format for spreadsheet analysis
 - PDF: Professional document format
 - HTML: Interactive web-based report
+- Markdown: Readable format for pull request comments and CI/CD job summaries
 
 Each report format is optimized for its specific use case while maintaining
 consistent data representation.
@@ -43,6 +44,7 @@ class ReportGenerator:
     - CSV reports for spreadsheet analysis
     - PDF reports for professional documentation
     - HTML reports for interactive viewing
+    - Markdown reports for CI/CD platforms (pull request comments, job summaries)
     """
 
     def __init__(self, image_name: str, results_dir: str = RESULTS_DIR):
@@ -718,6 +720,130 @@ class ReportGenerator:
             output.error(f"Failed to save HTML report: {e}")
             return ""
 
+    def generate_markdown_report(self, results: Dict) -> str:
+        """
+        Generate Markdown format report for CI/CD pipelines.
+
+        Markdown renders natively in pull request comments and job summaries,
+        so scan results can be shared without leaving the platform. The report
+        reuses the same normalized vulnerability data as the other formats:
+        severity counts plus a readable table of findings with fixed versions.
+
+        Args:
+            results: Scan results dictionary
+
+        Returns:
+            Path to the generated .md file, or empty string on failure
+        """
+        output_file = self._get_safe_filename("md")
+        logger.info(f"Generating Markdown report: {output_file}")
+
+        try:
+            vulnerabilities = results.get("json_data", [])
+            scan_mode = results.get("scan_mode", "full")
+            severity_counts = self._count_by_severity(vulnerabilities)
+
+            lines = [
+                "# Docker Security Scan Report",
+                "",
+                f"**Image:** {self._escape_markdown(self.image_name)}",
+                "**Scan Mode:** "
+                f"{self._escape_markdown(scan_mode.replace('_', ' ').title())}",
+                "**Dockerfile:** "
+                f"{self._escape_markdown(results.get('dockerfile_path', 'N/A'))}",
+                "**Scan Date:** "
+                f"{self._escape_markdown(results.get('timestamp', 'N/A'))}",
+                "**Analysis Score:** "
+                f"{self.analysis_score if self.analysis_score is not None else 'N/A'}",
+                "",
+                "## Severity Summary",
+                "",
+                "| Severity | Count |",
+                "|----------|-------|",
+            ]
+
+            # Zero-count severities are omitted so the summary stays compact.
+            for severity in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"):
+                count = severity_counts.get(severity, 0)
+                if count:
+                    lines.append(f"| {severity} | {count} |")
+            if not any(severity_counts.values()):
+                lines.append("| No vulnerabilities found | 0 |")
+            lines.append("")
+
+            lines.extend(["## Vulnerabilities", ""])
+            if not vulnerabilities:
+                lines.append("No vulnerabilities found.")
+                suppressed = results.get("suppressed_count")
+                if suppressed:
+                    ignore_file = self._escape_markdown(
+                        str(results.get("ignore_file", ""))
+                    )
+                    lines.extend(
+                        [
+                            "",
+                            f"> **Waived:** {suppressed} triaged finding(s) "
+                            f"suppressed via ignore file `{ignore_file}`",
+                        ]
+                    )
+            else:
+                lines.append(
+                    f"**Total vulnerabilities:** {len(vulnerabilities)}"
+                )
+                lines.append("")
+                lines.append(
+                    "| ID | Severity | Package | Installed Version | "
+                    "Fixed Version | Title |"
+                )
+                lines.append(
+                    "|----|----------|---------|-------------------|"
+                    "---------------|-------|"
+                )
+
+                for vuln in vulnerabilities[:50]:
+                    vuln_id = self._escape_markdown(
+                        str(vuln.get("VulnerabilityID") or "N/A")
+                    )
+                    severity = self._escape_markdown(
+                        str(vuln.get("Severity") or "N/A")
+                    )
+                    pkg_name = self._escape_markdown(
+                        str(vuln.get("PkgName") or "N/A")
+                    )
+                    installed_version = self._escape_markdown(
+                        str(vuln.get("InstalledVersion") or "N/A")
+                    )
+                    fixed_version = self._escape_markdown(
+                        str(vuln.get("FixedVersion") or "none yet")
+                    )
+                    title = self._escape_markdown(str(vuln.get("Title") or "N/A"))
+                    if len(title) > 80:
+                        title = title[:80] + "..."
+                    lines.append(
+                        f"| {vuln_id} | {severity} | {pkg_name} | "
+                        f"{installed_version} | {fixed_version} | {title} |"
+                    )
+
+                if len(vulnerabilities) > 50:
+                    lines.extend(
+                        [
+                            "",
+                            f"> Showing 50 of {len(vulnerabilities)} vulnerabilities. "
+                            "See JSON/CSV for the complete list.",
+                        ]
+                    )
+
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+
+            logger.info("Markdown report saved successfully")
+            return output_file
+
+        except Exception as e:
+            logger.error(f"Error saving Markdown report: {e}", exc_info=True)
+            output.error(f"Failed to save Markdown report: {e}")
+            return ""
+
     def _prepare_html_template_vars(self, results: Dict) -> Dict[str, str]:
         """
         Prepare variables for HTML template replacement.
@@ -742,13 +868,28 @@ class ReportGenerator:
             ),
         }
 
-        # Security Score Section
+        # Security Score Section (rating bands match the terminal summary in
+        # docksec.output._score_band)
+        score_rating_html = ""
+        if self.analysis_score is not None:
+            score = float(self.analysis_score)
+            if score >= 90:
+                rating, rating_class = "Excellent", "rating-excellent"
+            elif score >= 70:
+                rating, rating_class = "Good", "rating-good"
+            elif score >= 50:
+                rating, rating_class = "Fair", "rating-fair"
+            else:
+                rating, rating_class = "Poor", "rating-poor"
+            score_rating_html = f'<div class="score-rating {rating_class}">{rating}</div>'
+
         template_vars["SECURITY_SCORE_SECTION"] = f"""
         <div class="section">
             <h2>Security Score</h2>
             <div class="score-container">
                 <div class="score-label">Overall Security Score</div>
-                <div class="score-value">{self.analysis_score if self.analysis_score else 'N/A'}/100</div>
+                <div class="score-value">{self.analysis_score if self.analysis_score is not None else 'N/A'}/100</div>
+                {score_rating_html}
             </div>
         </div>
         """
@@ -836,7 +977,7 @@ class ReportGenerator:
                 )
             else:
                 dockerfile_output = results["dockerfile_scan"].get("output", "")
-                dockerfile_content = f'<pre style="background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 0.9em;">{self._escape_html(dockerfile_output[:2000])}</pre>'
+                dockerfile_content = f'<pre class="mono-block">{self._escape_html(dockerfile_output[:2000])}</pre>'
                 if len(dockerfile_output) > 2000:
                     dockerfile_content += (
                         "<p><em>Output truncated for display...</em></p>"
@@ -853,9 +994,15 @@ class ReportGenerator:
 
         # Vulnerability Summary
         if not vulnerabilities:
-            template_vars["VULNERABILITY_SUMMARY"] = (
-                '<div class="no-issues">No vulnerabilities found</div>'
-            )
+            no_issues_html = '<div class="no-issues">No vulnerabilities found</div>'
+            suppressed = results.get("suppressed_count")
+            if suppressed:
+                ignore_file = self._escape_html(str(results.get("ignore_file", "")))
+                no_issues_html += (
+                    f"<p><strong>Waived:</strong> {suppressed} triaged finding(s) "
+                    f"suppressed via ignore file {ignore_file}</p>"
+                )
+            template_vars["VULNERABILITY_SUMMARY"] = no_issues_html
             template_vars["DETAILED_VULNERABILITIES_SECTION"] = ""
         else:
             severity_counts = self._count_by_severity(vulnerabilities)
@@ -882,6 +1029,20 @@ class ReportGenerator:
             <p><strong>Total vulnerabilities:</strong> {len(vulnerabilities)}</p>
             """
 
+            fixable = sum(1 for v in vulnerabilities if v.get("FixedVersion"))
+            if fixable:
+                severity_html += (
+                    f"<p><strong>Fix available:</strong> {fixable} of "
+                    f"{len(vulnerabilities)} findings have a fixed version upstream</p>"
+                )
+            suppressed = results.get("suppressed_count")
+            if suppressed:
+                ignore_file = self._escape_html(str(results.get("ignore_file", "")))
+                severity_html += (
+                    f"<p><strong>Waived:</strong> {suppressed} triaged finding(s) "
+                    f"suppressed via ignore file {ignore_file}</p>"
+                )
+
             template_vars["VULNERABILITY_SUMMARY"] = severity_html
 
             # Detailed vulnerabilities table
@@ -895,7 +1056,8 @@ class ReportGenerator:
                             <th>ID</th>
                             <th>Severity</th>
                             <th>Package</th>
-                            <th>Version</th>
+                            <th>Installed</th>
+                            <th>Fixed In</th>
                             <th>Title</th>
                             <th>CVSS</th>
                             <th>Status</th>
@@ -928,6 +1090,11 @@ class ReportGenerator:
                 vuln_id = vuln.get('VulnerabilityID') or 'N/A'
                 pkg_name = vuln.get('PkgName') or 'N/A'
                 installed_version = vuln.get('InstalledVersion') or 'N/A'
+                fixed_version = vuln.get('FixedVersion') or ''
+                fixed_cell = (
+                    f'<span class="fixed-version">{self._escape_html(fixed_version)}</span>'
+                    if fixed_version else '<span class="no-fix">none yet</span>'
+                )
                 title = vuln.get('Title') or 'N/A'
                 display_title = (title[:80] + '...') if len(title) > 80 else title
 
@@ -937,6 +1104,7 @@ class ReportGenerator:
                             <td><span class="severity-badge {severity_class}">{vuln.get('Severity', 'N/A')}</span></td>
                             <td>{self._escape_html(pkg_name)}</td>
                             <td>{self._escape_html(installed_version)}</td>
+                            <td>{fixed_cell}</td>
                             <td>{self._escape_html(display_title)}</td>
                             <td>{cvss_score}</td>
                             <td><span class="status-badge {status_class}">{status}</span></td>
@@ -950,7 +1118,7 @@ class ReportGenerator:
             """
 
             if len(vulnerabilities) > 50:
-                table_html += f'<p style="margin-top: 15px; font-style: italic; color: #666;">Showing 50 of {len(vulnerabilities)} vulnerabilities. See CSV/JSON for complete list.</p>'
+                table_html += f'<p class="table-note">Showing 50 of {len(vulnerabilities)} vulnerabilities. See CSV/JSON for complete list.</p>'
 
             table_html += "</div>"
             template_vars["DETAILED_VULNERABILITIES_SECTION"] = table_html
@@ -1025,6 +1193,28 @@ class ReportGenerator:
             return ""
         return html.escape(str(text), quote=True)
 
+    def _escape_markdown(self, text) -> str:
+        """
+        Make text safe for Markdown tables.
+
+        Table cells break on the pipe character and on line breaks, so those
+        are escaped or flattened before a value is embedded in a row.
+
+        Args:
+            text: Text to sanitize
+
+        Returns:
+            Table-safe text
+        """
+        if not text:
+            return ""
+        return (
+            str(text)
+            .replace("\\", "\\\\")
+            .replace("|", "\\|")
+            .replace("\n", " ")
+        )
+
     def _count_by_severity(self, vulnerabilities: List[Dict]) -> Dict[str, int]:
         """
         Count vulnerabilities by severity level.
@@ -1060,8 +1250,9 @@ class ReportGenerator:
 
         Args:
             results: Scan results dictionary
-            formats: Iterable of formats to write ('json', 'csv', 'pdf', 'html').
-                     When None, all four formats are written.
+            formats: Iterable of formats to write ('json', 'csv', 'pdf', 'html',
+                     'markdown'). When None, the default four formats are
+                     written.
 
         Returns:
             Dictionary mapping the requested format(s) to their file path
@@ -1071,8 +1262,17 @@ class ReportGenerator:
             "csv": self.generate_csv_report,
             "pdf": self.generate_pdf_report,
             "html": self.generate_html_report,
+            "markdown": self.generate_markdown_report,
         }
-        selected = list(writers) if formats is None else [f for f in writers if f in formats]
+        # Markdown is opt-in: the default bundle keeps the original four
+        # formats so existing workflows are untouched. Users opt in with
+        # `--format markdown` (alone or alongside any of the others).
+        default_formats = ["json", "csv", "pdf", "html"]
+        selected = (
+            list(default_formats)
+            if formats is None
+            else [f for f in writers if f in formats]
+        )
 
         logger.info(f"Generating report formats: {', '.join(selected) or 'none'}")
         report_paths = {fmt: writers[fmt](results) for fmt in selected}

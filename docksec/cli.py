@@ -31,6 +31,125 @@ def get_version() -> str:
 
     return "unknown"
 
+def _load_project_config(args, output):
+    """Discover, load, and apply the repo-level config file.
+
+    Returns (file_config, config_path). The path is None when no file was used.
+
+    Precedence is enforced by only filling in settings the user left unset: an
+    explicit CLI flag is never overwritten, and env-var-backed settings are
+    applied by writing the environment variable only when it is not already set,
+    so `LLM_PROVIDER=x docksec ...` still beats a committed provider.
+
+    A config file that exists but is invalid exits 2. Unlike the ignore file,
+    where a bad entry is skipped with a warning, a broken policy file must stop
+    the run rather than silently scan under rules the team did not commit.
+    """
+    from docksec.project_config import (
+        ConfigFileError,
+        DocksecFileConfig,
+        find_config_file,
+        load_config_file,
+    )
+
+    # get_config() calls load_dotenv() lazily, which would otherwise populate
+    # the environment *after* the checks below and let the config file win over
+    # a .env entry. Load it up front so env-over-file precedence holds.
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:  # python-dotenv is a core dep; tolerate its absence
+        pass
+
+    if args.no_config:
+        return DocksecFileConfig(), None
+
+    if args.config_file:
+        # An explicitly named file that is missing is a usage error; a merely
+        # absent auto-discovered file is not.
+        if not os.path.isfile(args.config_file):
+            output.error(f"Config file not found: {args.config_file}")
+            sys.exit(2)
+        config_path = args.config_file
+    else:
+        config_path = find_config_file()
+        if not config_path:
+            return DocksecFileConfig(), None
+
+    try:
+        file_config, warnings = load_config_file(config_path)
+    except ConfigFileError as exc:
+        output.error(str(exc))
+        sys.exit(2)
+
+    for warning in warnings:
+        output.warn(warning)
+
+    # Settings that reach the rest of the CLI as attributes on `args`.
+    # Severity resolves through get_config().default_severity, which cannot
+    # distinguish "DOCKSEC_DEFAULT_SEVERITY was set" from "built-in default".
+    # Setting the env var here (only when absent) keeps env-over-file ordering
+    # without changing how the rest of the CLI reads the value.
+    if file_config.severity and not os.getenv("DOCKSEC_DEFAULT_SEVERITY"):
+        os.environ["DOCKSEC_DEFAULT_SEVERITY"] = file_config.severity
+
+    for attr, value in (
+        ("fail_on", file_config.fail_on),
+        ("output_dir", file_config.output_dir),
+        ("ignore_file", file_config.ignore_file),
+        ("baseline", file_config.baseline),
+        ("offline", file_config.offline),
+        ("skip_ai_scoring", file_config.skip_ai_scoring),
+        ("no_redact", file_config.no_redact),
+        ("no_cache", file_config.no_cache),
+    ):
+        if value is not None and getattr(args, attr, None) is None:
+            setattr(args, attr, value)
+
+    # --format is parsed from a comma-separated string; the file supplies a list.
+    if file_config.formats is not None and args.format is None:
+        args.format = ",".join(file_config.formats)
+
+    # Provider and model travel via environment variables. Only set them when
+    # the env var is absent, so an explicitly exported value still wins.
+    if file_config.provider and not os.getenv("LLM_PROVIDER"):
+        os.environ["LLM_PROVIDER"] = file_config.provider
+    if file_config.model and not os.getenv("LLM_MODEL"):
+        os.environ["LLM_MODEL"] = file_config.model
+
+    return file_config, config_path
+
+
+def _apply_disabled_rules(results, disabled_rules, output):
+    """Drop findings whose rule ID is disabled in the config file.
+
+    Applied alongside the ignore-file waivers, before scoring, reports, JSON
+    output, and the --fail-on gate, so a disabled rule is invisible everywhere.
+    Matching is case-insensitive on VulnerabilityID, consistent with waivers.
+    """
+    if not disabled_rules or not results.get("json_data"):
+        return 0
+
+    disabled = {rule.lower() for rule in disabled_rules}
+    kept = []
+    removed = 0
+    for finding in results["json_data"]:
+        rule_id = str(finding.get("VulnerabilityID", "")).lower()
+        if rule_id in disabled:
+            removed += 1
+        else:
+            kept.append(finding)
+
+    if removed:
+        results["json_data"] = kept
+        results["disabled_rule_count"] = removed
+        output.info(
+            f"Suppressed {removed} finding(s) from {len(disabled)} disabled rule(s) "
+            f"in the config file"
+        )
+    return removed
+
+
 def main() -> None:
     """
     Main entry point for the DockSec CLI tool.
@@ -62,18 +181,26 @@ def main() -> None:
                        help='LLM provider to use (default: openai, can also set LLM_PROVIDER env var)')
     parser.add_argument('--model', help='Model name to use (e.g., gpt-4o, claude-haiku-4-5, gemini-1.5-pro, llama3.1)')
     parser.add_argument('--compact-output', action='store_true', help='Use compact output format (less verbose)')
-    parser.add_argument('--skip-ai-scoring', action='store_true', help='Skip AI-based security scoring (use local scoring only)')
+    parser.add_argument('--skip-ai-scoring', action='store_true', default=None, help='Skip AI-based security scoring (use local scoring only)')
     parser.add_argument('--severity', help='Comma-separated severity levels to scan for (default: CRITICAL,HIGH; or set DOCKSEC_DEFAULT_SEVERITY)')
     parser.add_argument('--fail-on', dest='fail_on', metavar='SEVERITY', help='Exit with code 1 if any finding is at or above this severity (CRITICAL, HIGH, MEDIUM, or LOW)')
-    parser.add_argument('--format', dest='format', help='Comma-separated report formats to write: json, csv, pdf, html (default: all)')
+    parser.add_argument('--format', dest='format', help='Comma-separated report formats to write: json, csv, pdf, html, markdown (default: all)')
     parser.add_argument('--output-dir', dest='output_dir', metavar='DIR', help='Directory to write reports to (default: ~/.docksec/results or DOCKSEC_RESULTS_DIR)')
     parser.add_argument('--json', dest='json_stdout', action='store_true', help='Print scan results as JSON to stdout (no report files unless --format is also given)')
     parser.add_argument('--sarif', dest='sarif', action='store_true', help='Write a SARIF 2.1.0 report for GitHub Code Scanning and other SARIF-compatible tools')
     parser.add_argument('--sbom', dest='sbom', action='store_true', help='Write a CycloneDX SBOM (.cdx.json) of the scanned image for supply-chain tooling (requires an image)')
-    parser.add_argument('--offline', dest='offline', action='store_true', help='Run without network access: use the local Trivy DB (no DB update) and skip AI analysis')
+    parser.add_argument('--offline', dest='offline', action='store_true', default=None, help='Run without network access: use the local Trivy DB (no DB update) and skip AI analysis')
+    parser.add_argument('--no-redact', dest='no_redact', action='store_true', default=None, help='Do not mask secret-looking values before sending file content to the AI provider')
+    parser.add_argument('--no-cache', dest='no_cache', action='store_true', default=None, help='Bypass the scan results cache and force a fresh scan')
+    parser.add_argument('--ignore-file', dest='ignore_file', metavar='FILE', help='Path to an ignore file listing findings to suppress (default: .docksec-ignore.yml in the current directory, if present)')
     parser.add_argument('--baseline', dest='baseline', metavar='FILE', help='Path to a baseline file; with --fail-on, only findings not present in the baseline trigger the gate')
     parser.add_argument('--update-baseline', dest='update_baseline', action='store_true', help='Write the current scan findings to --baseline instead of gating against it')
+    parser.add_argument('--config', dest='config_file', metavar='FILE', help='Path to a DockSec config file (default: nearest .docksec.yml, searching up to the repository root)')
+    parser.add_argument('--no-config', dest='no_config', action='store_true', help='Ignore any .docksec.yml and use only flags, environment variables, and defaults')
+    parser.add_argument('--print-config-schema', dest='print_config_schema', action='store_true', help='Print the JSON Schema for .docksec.yml to stdout and exit')
     parser.add_argument('--quiet', action='store_true', help='Reduce output to warnings, errors, and the result summary')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show INFO-level log lines on stderr')
+    parser.add_argument('--log-file', dest='log_file', metavar='FILE', help='Also append log lines to FILE, creating missing parent directories; combine with --verbose to capture INFO-level logs')
     parser.add_argument('--no-color', action='store_true', help='Disable colored output (also honors the NO_COLOR env var)')
     parser.add_argument('--version', action='version', version=f'DockSec {get_version()}')
 
@@ -88,6 +215,21 @@ def main() -> None:
         os.environ["NO_COLOR"] = "1"
     output.configure(quiet=args.quiet, no_color=no_color, json_mode=args.json_stdout)
 
+    # --print-config-schema is a utility action: emit the schema and exit before
+    # any input validation, so it works from any directory with no arguments.
+    if args.print_config_schema:
+        import json as _json
+        from docksec.project_config import config_json_schema
+        print(_json.dumps(config_json_schema(), indent=2))
+        return
+
+    # Repo-level config file (.docksec.yml). Values here sit below CLI flags and
+    # environment variables: a flag always wins, an env var wins over the file,
+    # and the file wins over the built-in default. Applied before anything reads
+    # the resolved settings below.
+    file_config, config_path = _load_project_config(args, output)
+    disabled_rules = [rule.strip() for rule in file_config.rules.disabled if rule.strip()]
+
     # Set provider and model from CLI args if provided (overrides env vars)
     if args.provider:
         os.environ["LLM_PROVIDER"] = args.provider
@@ -97,6 +239,28 @@ def main() -> None:
     # Set compact output mode if requested
     if args.compact_output:
         os.environ["DOCKSEC_COMPACT_OUTPUT"] = "true"
+
+    # --no-cache: the scanner (and every per-service scanner in compose runs)
+    # reads DOCKSEC_USE_CACHE at construction time.
+    if args.no_cache:
+        os.environ["DOCKSEC_USE_CACHE"] = "false"
+
+    if args.verbose and not os.getenv("DOCKSEC_LOG_LEVEL"):
+        os.environ["DOCKSEC_LOG_LEVEL"] = "INFO"
+
+    # Resolve --log-file before any logger is built, so get_custom_logger can
+    # attach its file handler. Opening the path here surfaces an unwritable
+    # destination as a clean CLI error instead of a traceback mid-scan.
+    if args.log_file:
+        try:
+            parent = os.path.dirname(os.path.abspath(args.log_file))
+            os.makedirs(parent, exist_ok=True)
+            with open(args.log_file, 'a', encoding='utf-8'):
+                pass
+        except OSError as exc:
+            output.error(f"Cannot write to --log-file '{args.log_file}': {exc}")
+            sys.exit(2)
+        os.environ["DOCKSEC_LOG_FILE"] = args.log_file
 
     # Resolve the severity filter: CLI flag > DOCKSEC_DEFAULT_SEVERITY env > default.
     from docksec.config_manager import get_config
@@ -134,7 +298,7 @@ def main() -> None:
 
     # Resolve report formats and output directory.
     from docksec.config import RESULTS_DIR
-    valid_formats = ["json", "csv", "pdf", "html"]
+    valid_formats = ["json", "csv", "pdf", "html", "markdown"]
     report_formats = None  # None = write all formats (default)
     if args.format:
         requested = [f.strip().lower() for f in args.format.split(',') if f.strip()]
@@ -250,6 +414,10 @@ def main() -> None:
     from docksec.enums import LLMProvider
 
     output.banner(get_version(), mode_desc)
+    if config_path:
+        # Surface which committed policy is in force; a silently-applied config
+        # file is a support burden when a scan behaves unexpectedly.
+        output.kv("Config", os.path.relpath(config_path))
     output.kv("Reports", output_dir)
     if run_scan:
         output.kv("Severity", severity)
@@ -302,8 +470,29 @@ def main() -> None:
                 output.error(f"No {file_type} content found.")
                 return
 
-            # Truncate content to reduce token usage
-            truncated_content = truncate_dockerfile(filecontent, max_lines=150, max_chars=4000) if run_compose_analysis else truncate_dockerfile(filecontent, max_lines=50, max_chars=2000)
+            # Redact secret-looking values before the content leaves the
+            # machine. Keys stay visible so the model can still flag exposed
+            # credentials; the secret material itself is masked.
+            if not args.no_redact:
+                from docksec.redact import redact_content
+                filecontent, redacted_count = redact_content(filecontent)
+                if redacted_count:
+                    output.info(
+                        f"Masked {redacted_count} secret-looking value(s) before AI analysis "
+                        f"(--no-redact to disable)"
+                    )
+
+            # Cap very large inputs to bound token usage; warn when anything
+            # is dropped so a partial analysis is never mistaken for a full one.
+            if run_compose_analysis:
+                truncated_content = truncate_dockerfile(filecontent, max_lines=600, max_chars=24000)
+            else:
+                truncated_content = truncate_dockerfile(filecontent, max_lines=400, max_chars=16000)
+            if truncated_content != filecontent:
+                output.warn(
+                    f"{file_type} is very large; AI analysis covers only the first part "
+                    f"of the file. Scanner results (Trivy/Hadolint) are unaffected."
+                )
 
             response = analyser_chain.invoke({"filecontent": truncated_content})
             ai_findings = analyze_security(response, compact=True, report_path=output_dir)
@@ -359,6 +548,34 @@ def main() -> None:
                 else:
                     # Full scan including Dockerfile
                     results = scanner.run_full_scan(severity)
+
+            # Apply ignore-file suppressions before scoring, reports, JSON
+            # output, and the --fail-on gate see the findings.
+            ignore_path = args.ignore_file
+            if not ignore_path:
+                from docksec.ignore import find_default_ignore_file
+                ignore_path = find_default_ignore_file()
+            if ignore_path:
+                from docksec.ignore import load_ignore_file, apply_ignores
+                ignore_entries, ignore_warnings = load_ignore_file(ignore_path)
+                for warning in ignore_warnings:
+                    output.warn(warning)
+                kept_findings, suppressed_count = apply_ignores(
+                    results.get("json_data", []), ignore_entries)
+                if suppressed_count:
+                    results["json_data"] = kept_findings
+                    # Recorded so the reports and JSON payload can state that
+                    # findings were waived rather than silently absent.
+                    results["suppressed_count"] = suppressed_count
+                    results["ignore_file"] = ignore_path
+                    output.info(
+                        f"{suppressed_count} finding(s) suppressed by ignore file {ignore_path}"
+                    )
+
+            # Rules disabled in the config file are dropped before scoring, so a
+            # rule a team has switched off cannot influence the score, reports,
+            # --json, or the --fail-on gate.
+            _apply_disabled_rules(results, disabled_rules, output)
 
             # Calculate security score
             scanner.analysis_score = scanner.get_security_score(results)
@@ -547,6 +764,12 @@ def _print_json_results(results, scanner, report_paths):
         "vulnerabilities": vulnerabilities,
         "severity_counts": output.count_by_severity(vulnerabilities),
     }
+    if results.get("suppressed_count"):
+        payload["scan_info"]["suppressed_count"] = results["suppressed_count"]
+        payload["scan_info"]["ignore_file"] = results.get("ignore_file")
+    if results.get("failed_services"):
+        payload["scan_info"]["failed_services"] = results["failed_services"]
+        payload["scan_info"]["total_services"] = results.get("total_services")
     if "ai_findings" in results:
         payload["ai_analysis"] = results["ai_findings"]
     if report_paths:
@@ -570,6 +793,23 @@ def _render_scan_summary(output, args, scanner, results, report_paths,
     if report_paths:
         output.report_results(report_paths, scanner.RESULTS_DIR)
     output.next_command(_suggest_next_command(args, results, run_ai, run_compose_analysis))
+
+
+def _failed_service_names(failed_services):
+    """Return the distinct service names in ``failed_services``, in order.
+
+    A service that fails both its Dockerfile and its image scan is recorded
+    once per scan, so de-duplicate before counting.
+    """
+    names = []
+    for entry in failed_services or []:
+        name = entry.get("service") if isinstance(entry, dict) else entry
+        if not name:
+            continue
+        name = str(name)
+        if name not in names:
+            names.append(name)
+    return names
 
 
 def _quick_take_lines(results, counts, run_ai):
@@ -601,8 +841,26 @@ def _quick_take_lines(results, counts, run_ai):
     if exposed:
         lines.append(f"{len(exposed)} likely exposed credential(s) flagged by AI analysis")
 
+    suppressed = results.get("suppressed_count")
+    if suppressed:
+        lines.append(f"{suppressed} triaged finding(s) suppressed via ignore file")
+
+    # A compose service whose scan failed still leaves the run with a score, so
+    # say so here: otherwise the summary reads as if every service was covered.
+    failed_names = _failed_service_names(results.get("failed_services"))
+    if failed_names:
+        names = ", ".join(failed_names)
+        total = results.get("total_services")
+        if isinstance(total, int) and total > 0:
+            lines.append(f"{len(failed_names)} of {total} services could not be scanned: {names}")
+        else:
+            lines.append(f"{len(failed_names)} service(s) could not be scanned: {names}")
+
     if not run_ai and not results.get("ai_findings"):
-        lines.append("Run without --scan-only to add AI-powered explanations and fixes")
+        if results.get("scan_mode") == "image_only":
+            lines.append("Add a Dockerfile scan for AI-powered explanations and fixes: docksec <Dockerfile> -i <image>")
+        else:
+            lines.append("Run without --scan-only to add AI-powered explanations and fixes")
 
     return lines
 

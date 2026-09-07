@@ -5,7 +5,48 @@ All notable changes to DockSec will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.8.19] - 2026-08-19
+
+### Added
+
+- **Repo-level configuration file (`.docksec.yml`)**: a committed policy file for severity, `fail_on`, report formats, output directory, provider/model, waiver and baseline paths, and disabled rules, so a team's scan policy lives in the repository instead of in per-developer flags and environment variables. Discovery starts in the working directory and walks up to the repository root (stopping at the directory containing `.git`), so a service in a monorepo subdirectory inherits the policy committed at the top level. Precedence is CLI flag > environment variable > `.docksec.yml` > built-in default, so committed policy never overrides an explicit flag or an exported variable. The config file in force is shown in the scan banner.
+- **`--config FILE` and `--no-config`**: use a specific config file, or skip discovery entirely for reproducible CI runs.
+- **Per-rule disabling (`rules.disabled`)**: switches individual rules off before scoring, reports, `--json`, and the `--fail-on` gate, so a disabled rule cannot influence the security score. Matching is case-insensitive on the rule ID. The waiver file (`.docksec-ignore.yml`) remains the right tool for individual triaged findings, since its entries carry a reason and an expiry date.
+- **`--print-config-schema`**: emits a JSON Schema for the config file, committed at `docs/docksec-config-schema.json`. The `# yaml-language-server:` comment in the example config enables autocomplete and inline validation in VS Code and JetBrains editors.
+- **Annotated example config** at `examples/.docksec.yml`.
+
+### Changed
+
+- `--offline`, `--no-cache`, `--no-redact`, and `--skip-ai-scoring` now default to `None` rather than `False` internally, so an absent flag is distinguishable from an explicit `false` and no longer overrides a value set in the config file. Behavior is unchanged when no config file is present.
+
+### Fixed
+
+- **Invalid config files fail loudly**: a config file that exists but cannot be used as written (unknown key, invalid severity or provider value, malformed YAML) exits `2` with the offending key and file path named, rather than warning and continuing. This is deliberately stricter than the ignore file, where a malformed entry is skipped with a warning: a broken policy file must not silently scan under rules the team did not commit.
+- **Lint rule set pinned**: `[tool.ruff.lint] select` in `pyproject.toml` now fixes the enabled rules instead of inheriting ruff's defaults, which change between releases. Ruff 0.16 enabled several new rule groups by default and failed CI on every pull request without any code change.
+
 ## [Unreleased]
+
+### Added
+
+- **CycloneDX SBOM export (`--sbom`)**: writes a spec-compliant CycloneDX software bill of materials (`<image>.cdx.json`) of the scanned image, covering the full package inventory plus known vulnerabilities. The BOM is produced by Trivy's native exporter and DockSec is stamped into the tool metadata. Opt-in and independent of `--format`; requires a single image (`-i`), so it is skipped for compose runs. The path is surfaced in the report summary and in `--json` output under `report_files`.
+- **Offline mode (`--offline`)**: runs a scan with no network access, using the already-downloaded Trivy vulnerability database (`--offline-scan --skip-db-update`) and skipping the AI analysis and the Docker Scout advanced scan (both require network). Makes air-gapped scanning a single flag.
+- **`install-skill` subcommand**: `docksec install-skill` writes DockSec usage instructions into the well-known context files for AI coding assistants (Claude Code `.claude/commands/docksec.md`, Cursor `.cursor/rules/docksec.mdc`, Codex `AGENTS.md`, Gemini `GEMINI.md`, GitHub Copilot `.github/copilot-instructions.md`). Re-running updates the DockSec section in place rather than duplicating it. Added via backward-compatible subcommand dispatch: all existing flag-based usage is unchanged.
+- **Fixable-count and suggested-fix output**: the terminal result summary now reports how many findings have a fixed version available upstream (e.g. "28 of 40 have a fixed version available upstream") and prints a "Suggested fixes" block of concrete, severity-ranked, deduplicated upgrade hints (`upgrade PKG installed -> fixed`). Trivy's `FixedVersion` is now threaded into every finding, so it is also present in the JSON/CSV/SARIF outputs.
+
+### Changed
+
+- HTML report redesigned with a clean, professional, dark-mode-aware theme (replacing the previous purple-gradient style); all report data classes preserved.
+
+### Fixed
+
+- **HTML report dropped all AI findings**: the HTML report only rendered Trivy's package vulnerabilities, never the LLM findings (vulnerabilities, best practices, security risks, exposed credentials, remediation steps). For an AI-only run (Dockerfile analysis with no image) there are no Trivy vulnerabilities, so the HTML showed nothing but the security score even though the terminal reported dozens of findings. The complete AI findings now render in a dedicated "AI Dockerfile Analysis" section, so the report is the authoritative place to read the full list that the terminal only previews. (The PDF and JSON reports already carried these findings.)
+- **`get_llm()` crashed with `NameError` on any LLM init failure**: the exception handler referenced a module-level `console` defined later in the file, so a bad API key / no credits / network error raised `NameError: name 'console' is not defined` instead of showing the troubleshooting steps. Now routed through the shared output layer.
+
+## [2026.7.3] - 2026-07-02
+
+### Fixed
+
+- **AI analysis without an image wrote no report, but claimed it did**: running an AI analysis with a Dockerfile but no image (e.g. `docksec Dockerfile --provider anthropic`, or `--ai-only`) set the tool into a mode where the AI pass ran but the scan pass — the only place reports were generated — did not. No report file was written, yet the tool still printed "For detailed AI analysis, check the generated reports at: ...", pointing at a directory that contained only stale files from previous runs. Since the on-screen findings are truncated to the top few per section, the full AI findings were effectively unreachable. AI-only runs now write the complete findings to a report (JSON/CSV/PDF/HTML, plus SARIF with `--sarif`), honoring `--format` and `--output-dir`, and the "reports written" message is only shown when a report was actually generated.
 
 ## [2026.7.2] - 2026-07-02
 

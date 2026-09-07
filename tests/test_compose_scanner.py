@@ -56,6 +56,7 @@ services:
     image: nginx:latest
     ports:
       - "80:80"
+      - "3306:3306"
     privileged: true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -102,17 +103,45 @@ def test_compose_scanner_vulnerable(vulnerable_compose_file):
     assert "compose-plaintext-secret-env" in finding_ids
     assert "compose-port-bound-all-interfaces" in finding_ids
     assert "compose-disabled-security-opt" in finding_ids
-    assert "compose-no-non-root-user" in finding_ids
-    
+
     # MEDIUM
+    assert "compose-no-non-root-user" in finding_ids
     assert "compose-latest-or-untagged-image" in finding_ids
+
+    # LOW
     assert "compose-no-resource-limits" in finding_ids
     assert "compose-writable-root-fs" in finding_ids
-    
-    # LOW
     assert "compose-no-new-privileges" in finding_ids
     assert "compose-missing-healthcheck" in finding_ids
     assert "compose-no-network-segmentation" in finding_ids
+
+    # The port rule flags only sensitive ports: 3306 fires, plain HTTP 80
+    # does not.
+    port_findings = [f for f in findings if f['VulnerabilityID'] == 'compose-port-bound-all-interfaces']
+    assert len(port_findings) == 1
+    assert "3306" in port_findings[0]['Description']
+
+
+def test_port_rule_sensitivity(tmp_path):
+    compose_content = """
+services:
+  app:
+    image: myapp:1.0
+    ports:
+      - "8080:80"
+      - "6379"
+      - "127.0.0.1:5432:5432"
+"""
+    p = tmp_path / "docker-compose.yml"
+    p.write_text(compose_content)
+    scanner = ComposeScanner(str(p))
+    assert scanner.parse() is True
+    findings = scanner.scan()
+    port_findings = [f for f in findings if f['VulnerabilityID'] == 'compose-port-bound-all-interfaces']
+    # 8080:80 is a plain web port (not flagged); bare "6379" binds 0.0.0.0
+    # (flagged); 127.0.0.1:5432 is localhost-only (not flagged).
+    assert len(port_findings) == 1
+    assert "6379" in port_findings[0]['Description']
 
 def test_line_numbers(vulnerable_compose_file):
     scanner = ComposeScanner(vulnerable_compose_file)
@@ -143,4 +172,48 @@ def test_compose_orchestrator_offline(valid_compose_file, mocker):
     
     assert results['scan_mode'] == 'compose'
     assert results['dockerfile_scan']['success'] is True
-    assert results['image_scan']['success'] is True
+    assert results['image_scan']['success'] is True 
+    assert results["failed_services"] == []
+
+def test_compose_orchestrator_reports_total_services(valid_compose_file, mocker):
+    mock_scanner = mocker.patch('docksec.compose_scanner.DockerSecurityScanner')
+    mock_instance = mock_scanner.return_value
+    mock_instance.run_image_only_scan.return_value = {
+        'image_scan': {'success': True, 'output': 'Mock output'},
+        'json_data': []
+    }
+
+    orchestrator = ComposeOrchestrator(valid_compose_file, scan_only=True)
+    results = orchestrator.run_full_scan()
+
+    # The quick take renders "N of M services could not be scanned", so the
+    # denominator has to travel with failed_services.
+    assert results['total_services'] == 2
+    assert results['failed_services'] == []
+
+
+def test_compose_orchestrator_records_failed_services(valid_compose_file, mocker):
+    mock_scanner = mocker.patch('docksec.compose_scanner.DockerSecurityScanner')
+    mock_instance = mock_scanner.return_value
+    mock_instance.run_image_only_scan.return_value = {
+        'image_scan': {'success': False, 'output': 'image not found locally'},
+        'json_data': []
+    }
+
+    orchestrator = ComposeOrchestrator(valid_compose_file, scan_only=True)
+    results = orchestrator.run_full_scan()
+
+    assert results['total_services'] == 2
+    failed = {entry['service'] for entry in results['failed_services']}
+    assert failed == {'web', 'db'}
+
+
+def test_compose_orchestrator_unparseable_file_reports_zero_services(tmp_path):
+    bad = tmp_path / "docker-compose.yml"
+    bad.write_text("services: [this is not a mapping")
+
+    orchestrator = ComposeOrchestrator(str(bad), scan_only=True)
+    results = orchestrator.run_full_scan()
+
+    assert results['failed_services'] == []
+    assert results['total_services'] == 0

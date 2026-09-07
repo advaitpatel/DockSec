@@ -237,6 +237,31 @@ class TestCLI(unittest.TestCase):
         _, gen_kwargs = scanner.generate_all_reports.call_args
         self.assertEqual(gen_kwargs.get('formats'), ['json', 'html'])
 
+    @patch('sys.argv', ['docksec', '--image-only', '-i', 'test:latest',
+                        '--format', 'markdown,json', '--output-dir', '/tmp/docksec_test_out'])
+    @patch('docksec.docker_scanner.DockerSecurityScanner')
+    def test_markdown_format_threads_to_reports(self, mock_scanner_class):
+        """--format markdown is accepted and reaches the report call."""
+        from docksec.cli import main
+
+        scanner = Mock()
+        mock_scanner_class.return_value = scanner
+        scanner.run_image_only_scan.return_value = {
+            'json_data': [],
+            'dockerfile_scan': {'skipped': True},
+            'image_scan': {'skipped': False},
+            'scan_mode': 'image_only',
+        }
+        scanner.get_security_score.return_value = 90.0
+        scanner.generate_all_reports.return_value = {'markdown': 'x'}
+        scanner.RESULTS_DIR = '/tmp/docksec_test_out'
+
+        main()
+
+        # markdown is normalized to canonical order json,markdown and passed through.
+        _, gen_kwargs = scanner.generate_all_reports.call_args
+        self.assertEqual(gen_kwargs.get('formats'), ['json', 'markdown'])
+
     @patch('sys.argv', ['docksec', '--image-only', '-i', 'docksec_missing_img_xyz:latest', '--quiet', '--no-color'])
     def test_quiet_and_no_color_flags_are_accepted(self):
         """--quiet and --no-color must parse. Using a missing image makes the run
@@ -248,6 +273,112 @@ class TestCLI(unittest.TestCase):
             with self.assertRaises(SystemExit) as ctx:
                 main()
         self.assertNotEqual(ctx.exception.code, 2)
+
+    @patch("sys.argv", ["docksec", "--image-only", "-i", "test:latest", "--verbose"])
+    @patch("docksec.docker_scanner.DockerSecurityScanner")
+    def test_verbose_flag_sets_info_log_level(self, mock_scanner_class):
+        """--verbose is a shortcut for DOCKSEC_LOG_LEVEL=INFO."""
+        from docksec.cli import main
+
+        scanner = Mock()
+        mock_scanner_class.return_value = scanner
+        scanner.run_image_only_scan.return_value = {
+            "json_data": [],
+            "dockerfile_scan": {"skipped": True},
+            "image_scan": {"skipped": False},
+            "scan_mode": "image_only",
+        }
+        scanner.get_security_score.return_value = 90.0
+        scanner.generate_all_reports.return_value = {}
+        scanner.RESULTS_DIR = "/tmp"
+
+        with patch.dict(os.environ, {}, clear=True):
+            main()
+            self.assertEqual(os.environ["DOCKSEC_LOG_LEVEL"], "INFO")
+
+    @patch("sys.argv", ["docksec", "--image-only", "-i", "test:latest", "-v"])
+    @patch("docksec.docker_scanner.DockerSecurityScanner")
+    def test_verbose_flag_preserves_explicit_log_level(self, mock_scanner_class):
+        """An existing DOCKSEC_LOG_LEVEL takes priority over -v."""
+        from docksec.cli import main
+
+        scanner = Mock()
+        mock_scanner_class.return_value = scanner
+        scanner.run_image_only_scan.return_value = {
+            "json_data": [],
+            "dockerfile_scan": {"skipped": True},
+            "image_scan": {"skipped": False},
+            "scan_mode": "image_only",
+        }
+        scanner.get_security_score.return_value = 90.0
+        scanner.generate_all_reports.return_value = {}
+        scanner.RESULTS_DIR = "/tmp"
+
+        with patch.dict(os.environ, {"DOCKSEC_LOG_LEVEL": "DEBUG"}, clear=True):
+            main()
+            self.assertEqual(os.environ["DOCKSEC_LOG_LEVEL"], "DEBUG")
+
+    @staticmethod
+    def _close_file_handlers():
+        """Drop any FileHandler a run left open, so tearDown can remove the dir."""
+        import logging
+
+        loggers = [logging.getLogger()] + [
+            logging.getLogger(name) for name in logging.root.manager.loggerDict
+        ]
+        for log in loggers:
+            for handler in list(getattr(log, 'handlers', [])):
+                if isinstance(handler, logging.FileHandler):
+                    handler.close()
+                    log.removeHandler(handler)
+
+    @patch("docksec.docker_scanner.DockerSecurityScanner")
+    def test_log_file_flag_creates_file_and_parent_dirs(self, mock_scanner_class):
+        """--log-file exports DOCKSEC_LOG_FILE and creates missing parents."""
+        from docksec.cli import main
+
+        scanner = Mock()
+        mock_scanner_class.return_value = scanner
+        scanner.run_image_only_scan.return_value = {
+            "json_data": [],
+            "dockerfile_scan": {"skipped": True},
+            "image_scan": {"skipped": False},
+            "scan_mode": "image_only",
+        }
+        scanner.get_security_score.return_value = 90.0
+        scanner.generate_all_reports.return_value = {}
+        scanner.RESULTS_DIR = "/tmp"
+
+        log_path = os.path.join(self.test_dir, "nested", "dir", "docksec.log")
+        argv = ["docksec", "--image-only", "-i", "test:latest", "--log-file", log_path]
+        try:
+            with patch.object(sys, "argv", argv):
+                with patch.dict(os.environ, {}, clear=True):
+                    main()
+                    self.assertEqual(os.environ["DOCKSEC_LOG_FILE"], log_path)
+            self.assertTrue(os.path.isfile(log_path))
+        finally:
+            self._close_file_handlers()
+
+    def test_log_file_flag_errors_on_unwritable_path(self):
+        """An unwritable --log-file path exits 2 instead of raising."""
+        from docksec.cli import main
+
+        blocker = os.path.join(self.test_dir, "blocker")
+        with open(blocker, 'w') as handle:
+            handle.write("not a directory")
+        log_path = os.path.join(blocker, "docksec.log")
+
+        argv = ["docksec", "--image-only", "-i", "test:latest", "--log-file", log_path]
+        try:
+            with patch.object(sys, "argv", argv):
+                with patch.dict(os.environ, {}, clear=True):
+                    with self.assertRaises(SystemExit) as ctx:
+                        main()
+            self.assertEqual(ctx.exception.code, 2)
+            self.assertNotIn("DOCKSEC_LOG_FILE", os.environ)
+        finally:
+            self._close_file_handlers()
 
 
 class TestCLIHelpers(unittest.TestCase):
@@ -291,6 +422,85 @@ class TestCLIHelpers(unittest.TestCase):
         counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
         lines = _quick_take_lines(results, counts, run_ai=False)
         self.assertTrue(any("--scan-only" in line for line in lines))
+
+    def test_quick_take_image_only_hint_does_not_mention_scan_only(self):
+        from docksec.cli import _quick_take_lines
+
+        results = {"dockerfile_scan": {"skipped": True}, "scan_mode": "image_only"}
+        counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+        lines = _quick_take_lines(results, counts, run_ai=False)
+        self.assertFalse(any("--scan-only" in line for line in lines))
+        self.assertTrue(any("Dockerfile" in line for line in lines))
+
+    def test_quick_take_reports_suppressed_findings(self):
+        from docksec.cli import _quick_take_lines
+
+        results = {"dockerfile_scan": {"skipped": True}, "suppressed_count": 4}
+        counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+        lines = _quick_take_lines(results, counts, run_ai=True)
+        self.assertTrue(any("4 triaged finding(s) suppressed" in line for line in lines))
+
+    def test_quick_take_reports_failed_compose_services(self):
+        from docksec.cli import _quick_take_lines
+
+        results = {
+            "dockerfile_scan": {"skipped": True},
+            "scan_mode": "compose",
+            "total_services": 3,
+            "failed_services": [
+                {"service": "web", "reason": "Image scan failed"},
+                {"service": "db", "reason": "Image scan failed"},
+            ],
+        }
+        counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+        lines = _quick_take_lines(results, counts, run_ai=True)
+        self.assertTrue(
+            any("2 of 3 services could not be scanned: web, db" in line for line in lines)
+        )
+
+    def test_quick_take_counts_a_doubly_failed_service_once(self):
+        from docksec.cli import _quick_take_lines
+
+        results = {
+            "dockerfile_scan": {"skipped": True},
+            "scan_mode": "compose",
+            "total_services": 2,
+            "failed_services": [
+                {"service": "web", "reason": "Dockerfile scan failed"},
+                {"service": "web", "reason": "Image scan failed"},
+            ],
+        }
+        counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+        lines = _quick_take_lines(results, counts, run_ai=True)
+        self.assertTrue(
+            any("1 of 2 services could not be scanned: web" in line for line in lines)
+        )
+
+    def test_quick_take_reports_failures_without_a_service_total(self):
+        from docksec.cli import _quick_take_lines
+
+        results = {
+            "dockerfile_scan": {"skipped": True},
+            "failed_services": [{"service": "web", "reason": "boom"}],
+        }
+        counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+        lines = _quick_take_lines(results, counts, run_ai=True)
+        self.assertTrue(
+            any("1 service(s) could not be scanned: web" in line for line in lines)
+        )
+
+    def test_quick_take_stays_silent_when_every_service_scanned(self):
+        from docksec.cli import _quick_take_lines
+
+        results = {
+            "dockerfile_scan": {"skipped": True},
+            "scan_mode": "compose",
+            "total_services": 3,
+            "failed_services": [],
+        }
+        counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+        lines = _quick_take_lines(results, counts, run_ai=True)
+        self.assertFalse(any("could not be scanned" in line for line in lines))
 
     def test_suggest_next_command_recommends_image_scan(self):
         from docksec.cli import _suggest_next_command
@@ -646,6 +856,138 @@ class TestBaselineGate(unittest.TestCase):
     def test_fail_on_without_baseline_gates_normally(self):
         code = self._run_image_only_with(["CRITICAL"], ['--fail-on', 'critical'])
         self.assertEqual(code, 1)
+
+
+class TestFixCommandHelpers(unittest.TestCase):
+    """Tests for the fixable-count and suggested-fix-command output helpers."""
+
+    def test_suggest_fix_commands_dedupes_and_orders_by_severity(self):
+        from docksec.cli import _suggest_fix_commands
+        results = {"json_data": [
+            {"PkgName": "zlib", "Severity": "MEDIUM", "InstalledVersion": "1.0", "FixedVersion": "1.1"},
+            {"PkgName": "openssl", "Severity": "CRITICAL", "InstalledVersion": "1.1.1", "FixedVersion": "3.0"},
+            {"PkgName": "openssl", "Severity": "HIGH", "InstalledVersion": "1.1.1", "FixedVersion": "3.0"},
+            {"PkgName": "nofix", "Severity": "HIGH", "InstalledVersion": "1.0", "FixedVersion": None},
+        ]}
+        cmds = _suggest_fix_commands(results)
+        # openssl (critical) first, deduped once; zlib present; nofix excluded.
+        self.assertEqual(cmds[0], "upgrade openssl 1.1.1 -> 3.0")
+        self.assertEqual(sum(1 for c in cmds if c.startswith("upgrade openssl")), 1)
+        self.assertTrue(any(c.startswith("upgrade zlib") for c in cmds))
+        self.assertFalse(any("nofix" in c for c in cmds))
+
+    def test_suggest_fix_commands_empty_when_no_fixed_versions(self):
+        from docksec.cli import _suggest_fix_commands
+        results = {"json_data": [
+            {"PkgName": "x", "Severity": "HIGH", "InstalledVersion": "1", "FixedVersion": None},
+        ]}
+        self.assertEqual(_suggest_fix_commands(results), [])
+
+    def test_suggest_fix_commands_respects_limit(self):
+        from docksec.cli import _suggest_fix_commands
+        results = {"json_data": [
+            {"PkgName": f"pkg{i}", "Severity": "HIGH", "InstalledVersion": "1", "FixedVersion": "2"}
+            for i in range(10)
+        ]}
+        self.assertEqual(len(_suggest_fix_commands(results, limit=3)), 3)
+
+    def test_quick_take_reports_fixable_count(self):
+        from docksec.cli import _quick_take_lines
+        from docksec import output
+        results = {"json_data": [
+            {"PkgName": "a", "Severity": "CRITICAL", "FixedVersion": "2"},
+            {"PkgName": "b", "Severity": "HIGH", "FixedVersion": None},
+        ]}
+        counts = output.count_by_severity(results["json_data"])
+        lines = _quick_take_lines(results, counts, run_ai=True)
+        self.assertTrue(any("1 of 2 have a fixed version" in ln for ln in lines))
+
+
+class TestSbomAndOffline(unittest.TestCase):
+    """Test cases for --sbom and --offline CLI wiring."""
+
+    def _run_image_only(self, extra_argv=None):
+        from docksec.cli import main
+
+        argv = ['docksec', '--image-only', '-i', 'test:latest'] + (extra_argv or [])
+        with patch('sys.argv', argv), \
+             patch('docksec.docker_scanner.DockerSecurityScanner') as scanner_cls, \
+             patch('docksec.report_generator.ReportGenerator') as report_cls:
+            scanner = Mock()
+            scanner_cls.return_value = scanner
+            scanner.image_name = "test:latest"
+            scanner.analysis_score = 90.0
+            scanner.RESULTS_DIR = '/tmp'
+            scanner.run_image_only_scan.return_value = {
+                'json_data': [],
+                'dockerfile_scan': {'skipped': True},
+                'image_scan': {'skipped': False},
+                'scan_mode': 'image_only',
+            }
+            scanner.get_security_score.return_value = 90.0
+            scanner.generate_all_reports.return_value = {'json': '/tmp/x.json'}
+            scanner.generate_sbom.return_value = '{"bomFormat":"CycloneDX"}'
+
+            report_gen = Mock()
+            report_cls.return_value = report_gen
+            report_gen.generate_cyclonedx_report.return_value = '/tmp/x.cdx.json'
+
+            code = 0
+            with patch('builtins.print'):
+                try:
+                    main()
+                except SystemExit as e:
+                    code = e.code
+            return code, scanner, report_gen
+
+    def test_sbom_not_generated_without_flag(self):
+        _, scanner, report_gen = self._run_image_only()
+        report_gen.generate_cyclonedx_report.assert_not_called()
+
+    def test_sbom_flag_generates_report(self):
+        code, scanner, report_gen = self._run_image_only(extra_argv=['--sbom'])
+        self.assertEqual(code, 0)
+        scanner.generate_sbom.assert_called_once()
+        report_gen.generate_cyclonedx_report.assert_called_once()
+
+    def test_offline_flag_passed_to_scanner(self):
+        from docksec.cli import main
+        # The scanner class must be constructed with offline=True.
+        with patch('sys.argv', ['docksec', '--image-only', '-i', 'test:latest', '--offline']), \
+             patch('docksec.docker_scanner.DockerSecurityScanner') as scanner_cls:
+            scanner = Mock()
+            scanner_cls.return_value = scanner
+            scanner.image_name = "test:latest"
+            scanner.RESULTS_DIR = '/tmp'
+            scanner.run_image_only_scan.return_value = {
+                'json_data': [], 'dockerfile_scan': {'skipped': True},
+                'image_scan': {'skipped': False}, 'scan_mode': 'image_only',
+            }
+            scanner.get_security_score.return_value = 90.0
+            scanner.generate_all_reports.return_value = {}
+            with patch('builtins.print'):
+                try:
+                    main()
+                except SystemExit:
+                    # main() exits via sys.exit(); the scan pass has already run
+                    # and constructed the scanner by this point, which is all
+                    # this test inspects.
+                    pass
+            _, kwargs = scanner_cls.call_args
+            self.assertTrue(kwargs.get('offline'))
+
+
+class TestInstallSkillDispatch(unittest.TestCase):
+    """Test the install-skill subcommand dispatch in main()."""
+
+    def test_install_skill_dispatches_and_returns(self):
+        from docksec.cli import main
+
+        with patch('sys.argv', ['docksec', 'install-skill']), \
+             patch('docksec.install_skill.install_skill') as mock_install:
+            # Must not raise SystemExit and must call install_skill().
+            main()
+            mock_install.assert_called_once()
 
 
 if __name__ == '__main__':

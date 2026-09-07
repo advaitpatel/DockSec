@@ -8,7 +8,7 @@ import sys
 import re
 from pathlib import Path
 from docksec import output as ui  # aliased; a local var named `output` is used below
-from docksec.config import RESULTS_DIR, docker_score_prompt
+from docksec.config import RESULTS_DIR
 from docksec.enums import Severity
 from docksec.utils import ScoreResponse, get_llm, print_section, get_custom_logger
 from collections import defaultdict
@@ -18,10 +18,6 @@ logger = get_custom_logger(__name__)
 
 class ScanResultsCache:
     """Simple cache for scan results to avoid re-scanning same images."""
-    
-    def __init__(self, cache_dir: str = RESULTS_DIR):
-        self.cache_file = os.path.join(cache_dir, ".docksec_cache.json")
-        self.cache = self._load_cache()
     
     def _load_cache(self) -> Dict:
         """Load cache from disk."""
@@ -41,21 +37,57 @@ class ScanResultsCache:
         except IOError as e:
             logger.warning(f"Failed to save cache: {e}")
     
-    def get_key(self, image_name: str, severity: str = "CRITICAL,HIGH") -> str:
-        """Generate cache key from image name and severity filter."""
+    # Default time-to-live for cache entries, in hours. Vulnerability databases
+    # move daily, so even a digest-accurate scan goes stale; override with
+    # DOCKSEC_CACHE_TTL_HOURS.
+    DEFAULT_TTL_HOURS = 24
+
+    def __init__(self, cache_dir: str = RESULTS_DIR):
+        self.cache_file = os.path.join(cache_dir, ".docksec_cache.json")
+        self.cache = self._load_cache()
+        try:
+            self.ttl_hours = float(os.getenv("DOCKSEC_CACHE_TTL_HOURS", self.DEFAULT_TTL_HOURS))
+        except ValueError:
+            self.ttl_hours = self.DEFAULT_TTL_HOURS
+
+    def get_key(self, image_id: str, severity: str = "CRITICAL,HIGH", extra: str = "") -> str:
+        """Generate cache key from image identity, severity filter, and any
+        extra scan-input identity (e.g. the Dockerfile content hash).
+
+        image_id should be the image digest/ID when available so a rebuilt
+        tag (e.g. a reused :latest) never serves stale results.
+        """
         normalized_severity = ",".join(sorted(s.strip().upper() for s in severity.split(",")))
-        return hashlib.md5(f"{image_name}|{normalized_severity}".encode()).hexdigest()
+        return hashlib.md5(f"{image_id}|{normalized_severity}|{extra}".encode()).hexdigest()
 
-    def get(self, image_name: str, severity: str = "CRITICAL,HIGH") -> Optional[Dict]:
-        """Get cached results for an image scanned at a given severity."""
-        key = self.get_key(image_name, severity)
-        return self.cache.get(key)
+    def _is_expired(self, entry: Dict) -> bool:
+        try:
+            entry_time = datetime.fromisoformat(entry.get("timestamp", ""))
+        except (ValueError, TypeError):
+            return True
+        from datetime import timedelta
+        return datetime.now() - entry_time > timedelta(hours=self.ttl_hours)
 
-    def set(self, image_name: str, results: Dict, severity: str = "CRITICAL,HIGH") -> None:
+    def get(self, image_id: str, severity: str = "CRITICAL,HIGH", extra: str = "") -> Optional[Dict]:
+        """Get cached results for an image scanned at a given severity.
+
+        Entries older than the TTL are dropped and treated as a miss.
+        """
+        key = self.get_key(image_id, severity, extra)
+        entry = self.cache.get(key)
+        if entry is None:
+            return None
+        if self._is_expired(entry):
+            del self.cache[key]
+            self._save_cache()
+            return None
+        return entry
+
+    def set(self, image_id: str, results: Dict, severity: str = "CRITICAL,HIGH", extra: str = "") -> None:
         """Cache scan results for an image scanned at a given severity."""
-        key = self.get_key(image_name, severity)
+        key = self.get_key(image_id, severity, extra)
         self.cache[key] = {
-            "image": image_name,
+            "image": image_id,
             "severity": severity,
             "timestamp": datetime.now().isoformat(),
             "results": results
@@ -210,7 +242,7 @@ class DockerSecurityScanner:
                     title = title[:57] + "..."
                 ui.detail(f"    - [{vuln.get('Severity')}] {vuln.get('VulnerabilityID', 'N/A')}: {title}")
     
-    def __init__(self, dockerfile_path: Optional[str], image_name: Optional[str], results_dir: str = RESULTS_DIR, scan_only: bool = False, skip_ai_scoring: bool = False):
+    def __init__(self, dockerfile_path: Optional[str], image_name: Optional[str], results_dir: str = RESULTS_DIR, scan_only: bool = False, skip_ai_scoring: bool = False, offline: bool = False):
         """
         Initialize the Docker Security Scanner with a Dockerfile path and/or image name.
         Verifies that required tools are installed and the specified files exist.
@@ -242,6 +274,10 @@ class DockerSecurityScanner:
         self.RESULTS_DIR = results_dir
         self.scan_only = scan_only
         self.skip_ai_scoring = skip_ai_scoring
+        # Offline mode: pass Trivy --offline-scan --skip-db-update so no network
+        # is used (uses the already-downloaded Trivy vuln DB). Threaded into the
+        # image scan calls and SBOM generation below.
+        self.offline = offline
         self.analysis_score = None  # Initialize to avoid AttributeError when accessed before calculation
         
         # Initialize score chain: skip if scan_only or skip_ai_scoring flags are set
@@ -251,6 +287,7 @@ class DockerSecurityScanner:
             try:
                 from docksec.enums import LLMProvider
                 from docksec.config_manager import get_config
+                from docksec.config import docker_score_prompt
                 config = get_config()
                 provider = config.llm_provider
                 llm = get_llm()
@@ -319,6 +356,45 @@ class DockerSecurityScanner:
                 raise ValueError(
                     "Docker command not found. Please ensure Docker is installed and accessible in your PATH."
                 )
+    def _cache_image_id(self) -> str:
+        """Resolve the image's content digest/ID for cache keying.
+
+        Using the image ID (not the tag) means a rebuilt tag such as a reused
+        :latest is a cache miss instead of silently serving stale findings.
+        Falls back to the image name if the ID cannot be resolved.
+        """
+        if not self.image_name:
+            return "no-image"
+        try:
+            result = subprocess.run(
+                ['docker', 'image', 'inspect', '-f', '{{.Id}}', self.image_name],
+                capture_output=True, text=True, timeout=30, shell=False
+            )
+            image_id = (result.stdout or "").strip()
+            if result.returncode == 0 and image_id:
+                return image_id
+            logger.debug(
+                f"docker image inspect returned no ID for {self.image_name} "
+                f"(rc={result.returncode}); caching by image name instead"
+            )
+        except (subprocess.SubprocessError, OSError) as e:
+            logger.debug(
+                f"Could not resolve image ID for {self.image_name} ({e}); "
+                f"caching by image name instead"
+            )
+        return self.image_name
+
+    def _dockerfile_fingerprint(self) -> str:
+        """Content hash of the Dockerfile so cached full-scan results are never
+        reused across different Dockerfiles that share an image."""
+        if not self.dockerfile_path:
+            return "no-dockerfile"
+        try:
+            with open(self.dockerfile_path, 'rb') as f:
+                return hashlib.md5(f.read()).hexdigest()
+        except OSError:
+            return f"unreadable:{self.dockerfile_path}"
+
     def run_image_only_scan(self, severity: str = "CRITICAL,HIGH") -> Dict:
         """
         Run image-only security scan without Dockerfile analysis.
@@ -332,12 +408,13 @@ class DockerSecurityScanner:
         # Validate severity input
         severity = self._validate_severity(severity)
 
-        # Check cache first
+        # Check cache first (keyed by image digest so rebuilt tags miss)
+        cache_id = self._cache_image_id() if self.use_cache else None
         if self.use_cache:
-            cached = self.cache.get(self.image_name, severity)
+            cached = self.cache.get(cache_id, severity)
             if cached:
                 ui.info(f"Using cached scan results for {self.image_name} (scanned at {cached.get('timestamp', 'N/A')})")
-                ui.detail("Tip: set DOCKSEC_USE_CACHE=false to bypass the cache")
+                ui.detail("Tip: use --no-cache (or DOCKSEC_USE_CACHE=false) to bypass the cache")
                 return cached.get('results', {})
 
         logger.info(f"Starting image-only scan for {self.image_name}")
@@ -371,7 +448,7 @@ class DockerSecurityScanner:
 
         # Cache results
         if self.use_cache:
-            self.cache.set(self.image_name, results, severity)
+            self.cache.set(cache_id, results, severity)
 
         # Print final summary
         if not json_data:
@@ -515,6 +592,7 @@ class DockerSecurityScanner:
                     "Target": target,
                     "PkgName": vulnerability.get("PkgName"),
                     "InstalledVersion": vulnerability.get("InstalledVersion"),
+                    "FixedVersion": vulnerability.get("FixedVersion"),
                     "Severity": vulnerability.get("Severity"),
                     "Title": vulnerability.get("Title"),
                     "Description": description,
@@ -551,23 +629,33 @@ class DockerSecurityScanner:
                 TextColumn("[progress.description]{task.description}"),
                 BarColumn(),
                 TimeElapsedColumn(),
-                console=None
+                # Route the spinner through the shared output console so it
+                # honors --json (which redirects human output to stderr) and
+                # never pollutes the machine-readable stdout payload.
+                console=ui.get_console(),
+                # No live spinner when quiet or when output is not a terminal
+                # (CI logs would otherwise capture a half-drawn progress bar).
+                disable=ui.is_quiet() or not ui.get_console().is_terminal,
             ) as progress:
                 scan_task = progress.add_task(
                     f"[cyan]Scanning {self.image_name}...",
                     total=None
                 )
                 
+                trivy_cmd = [
+                    'trivy',
+                    'image',
+                    '-f', 'json',
+                    '--severity', severity,
+                    '--no-progress',
+                    '--skip-version-check',
+                ]
+                if getattr(self, 'offline', False):
+                    trivy_cmd += ['--offline-scan', '--skip-db-update']
+                trivy_cmd.append(self.image_name)
+
                 result = subprocess.run(
-                    [
-                        'trivy',
-                        'image',
-                        '-f', 'json',
-                        '--severity', severity,
-                        '--no-progress',
-                        '--skip-version-check',
-                        self.image_name
-                    ],
+                    trivy_cmd,
                     capture_output=True,
                     text=True,
                     encoding='utf-8',
@@ -625,16 +713,20 @@ class DockerSecurityScanner:
         logger.info(f"Starting Trivy scan for image: {self.image_name} with severity: {severity}")
         
         try:
+            trivy_cmd = [
+                'trivy',
+                'image',
+                '--severity', severity,
+                '--no-progress',
+                '--skip-version-check',
+                '--quiet',
+            ]
+            if getattr(self, 'offline', False):
+                trivy_cmd += ['--offline-scan', '--skip-db-update']
+            trivy_cmd.append(self.image_name)
+
             result = subprocess.run(
-                [
-                    'trivy',
-                    'image',
-                    '--severity', severity,
-                    '--no-progress',
-                    '--skip-version-check',
-                    '--quiet',
-                    self.image_name
-                ],
+                trivy_cmd,
                 capture_output=True,
                 text=True,
                 encoding='utf-8',
@@ -702,8 +794,61 @@ class DockerSecurityScanner:
         except FileNotFoundError:
             # Silently fail if tool not found, as it's optional
             result_dict['error'] = "Docker Scout not found"
-        
+
         return result_dict
+
+    def generate_sbom(self) -> Optional[str]:
+        """
+        Generate a CycloneDX SBOM for the image using Trivy's native exporter.
+
+        Trivy produces a spec-compliant CycloneDX 1.x document that lists every
+        package component in the image plus any known vulnerabilities, which is
+        exactly what supply-chain consumers (Dependency-Track, GitHub, etc.)
+        expect. Writing it here (rather than re-deriving a BOM from the filtered
+        findings) keeps DockSec's SBOM faithful to the full package inventory,
+        not just the severity-filtered vulnerability subset.
+
+        Returns:
+            The raw CycloneDX JSON string, or None if generation failed. The
+            caller (ReportGenerator) owns writing it to a file.
+        """
+        if not self.image_name:
+            return None
+
+        cmd = ['trivy', 'image', '--format', 'cyclonedx', '--no-progress',
+               '--skip-version-check', '--quiet']
+        if getattr(self, 'offline', False):
+            cmd += ['--offline-scan', '--skip-db-update']
+        cmd.append(self.image_name)
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                timeout=600,
+                shell=False
+            )
+            if result.returncode != 0 or not result.stdout:
+                logger.warning(
+                    f"Trivy SBOM generation failed for {self.image_name}: "
+                    f"{(result.stderr or '')[:200]}"
+                )
+                ui.warn("SBOM generation failed; see logs for details.")
+                return None
+            return result.stdout
+        except subprocess.TimeoutExpired:
+            ui.error("SBOM generation timed out after 600 seconds")
+            return None
+        except FileNotFoundError:
+            ui.error("Trivy not found in PATH; cannot generate SBOM.")
+            return None
+        except Exception as e:
+            logger.error(f"SBOM generation failed: {e}", exc_info=True)
+            ui.error(f"SBOM generation failed: {e}")
+            return None
+
     def run_full_scan(self, severity: str = "CRITICAL,HIGH") -> Dict:
         """
         Run all security scans and return results.
@@ -717,12 +862,18 @@ class DockerSecurityScanner:
         # Validate severity input
         severity = self._validate_severity(severity)
 
-        # Check cache first (only if image name is provided)
+        # Check cache first (only if image name is provided). The key includes
+        # the image digest and the Dockerfile content hash so cached results
+        # are never reused for a rebuilt tag or a different Dockerfile.
+        cache_id = None
+        dockerfile_fp = None
         if self.image_name and self.use_cache:
-            cached = self.cache.get(self.image_name, severity)
+            cache_id = self._cache_image_id()
+            dockerfile_fp = self._dockerfile_fingerprint()
+            cached = self.cache.get(cache_id, severity, extra=dockerfile_fp)
             if cached:
                 ui.info(f"Using cached scan results for {self.image_name} (scanned at {cached.get('timestamp', 'N/A')})")
-                ui.detail("Tip: set DOCKSEC_USE_CACHE=false to bypass the cache")
+                ui.detail("Tip: use --no-cache (or DOCKSEC_USE_CACHE=false) to bypass the cache")
                 return cached.get('results', {})
 
         scan_status = True
@@ -770,7 +921,7 @@ class DockerSecurityScanner:
 
             # Cache results
             if self.use_cache:
-                self.cache.set(self.image_name, results, severity)
+                self.cache.set(cache_id, results, severity, extra=dockerfile_fp)
 
         # Print final summary
         target_name = self.image_name if self.image_name else self.dockerfile_path

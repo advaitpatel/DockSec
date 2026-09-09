@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from docksec import output
-from docksec.config import RESULTS_DIR, TEMPLATES_DIR, get_html_template
+from docksec.config import RESULTS_DIR, TEMPLATES_DIR
 from docksec.utils import get_custom_logger
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 

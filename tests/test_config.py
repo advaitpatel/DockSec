@@ -169,6 +169,24 @@ class TestConfig(unittest.TestCase):
         self.assertIn("<html", template.lower())
         self.assertIn("Docker Security Report", template)
 
+    @patch("os.path.exists", return_value=False)
+    def test_get_html_template_missing(self, mock_exists):
+        """Test HTML template loading when template file is missing."""
+        from docksec.config import get_html_template
+        
+        template = get_html_template()
+        self.assertIn("Template missing", template)
+
+    @patch("os.path.exists", return_value=True)
+    @patch("builtins.open", side_effect=IOError("Permission denied"))
+    def test_get_html_template_error(self, mock_open, mock_exists):
+        """Test HTML template loading when reading fails."""
+        from docksec.config import get_html_template
+        
+        template = get_html_template()
+        self.assertIn("Error", template)
+        self.assertIn("Permission denied", template)
+
     def test_results_dir_default(self):
         """Test that RESULTS_DIR defaults to home directory."""
         from docksec.config import RESULTS_DIR

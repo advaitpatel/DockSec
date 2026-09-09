@@ -33,6 +33,7 @@ setup(
         "fpdf2>=2.8,<3",
         "setuptools>=65.0.0",
         "ruamel.yaml>=0.18.6",
+        "jinja2>=3.1.0",
     ],
     extras_require={
         "dev": [
@@ -60,6 +61,6 @@ setup(
     ],
     include_package_data=True,
     package_data={
-        'docksec': ['templates/*.html'],
+        'docksec': ['templates/*'],
     },
 )

@@ -73,17 +73,14 @@ def get_html_template() -> str:
     """
     Load the HTML report template from the templates directory.
     """
-    template_path = os.path.join(TEMPLATES_DIR, "report_template.html")
-    try:
-        if os.path.exists(template_path):
+    template_path = os.path.join(TEMPLATES_DIR, "report.html.j2")
+    if os.path.exists(template_path):
+        try:
             with open(template_path, 'r', encoding='utf-8') as f:
                 return f.read()
-        else:
-            # Fallback for when running from a location where templates might not be correctly linked
-            # This is a safety measure
-            return "<html><body><h1>Docker Security Report</h1><p>Template missing at " + template_path + "</p></body></html>"
-    except Exception as e:
-        return f"<html><body><h1>Error</h1><p>{str(e)}</p></body></html>"
+        except Exception as e:
+            return f"<html><body><h1>Error</h1><p>{str(e)}</p></body></html>"
+    return "<html><body><h1>Docker Security Report</h1><p>Template missing in " + TEMPLATES_DIR + "</p></body></html>"
 
 
 # For backward compatibility with existing code that imports html_template

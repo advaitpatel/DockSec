@@ -364,6 +364,89 @@ def test_html_omits_ai_section_without_findings(tmp_path):
     assert "<h2>AI Dockerfile Analysis</h2>" not in content
 
 
+def test_html_renders_vulnerabilities_table_and_truncation(tmp_path):
+    vulns = [
+        {
+            "VulnerabilityID": f"CVE-2024-{1000 + i}",
+            "Severity": "CRITICAL" if i % 2 == 0 else "HIGH",
+            "PkgName": f"package-{i}",
+            "InstalledVersion": f"1.0.{i}",
+            "Title": f"Vulnerability title for issue {i}",
+            "CVSS": 8.5,
+            "Status": "fixed" if i % 2 == 0 else "affected",
+        }
+        for i in range(60)
+    ]
+    rg = ReportGenerator(image_name="test-image", results_dir=str(tmp_path))
+    results = make_results(vulns)
+    output_path = rg.generate_html_report(results)
+    with open(output_path, encoding="utf-8") as f:
+        content = f.read()
+
+    assert "<h2>Detailed Vulnerabilities</h2>" in content
+    assert "Total vulnerabilities:</strong> 60" in content
+    assert "Showing 50 of 60 vulnerabilities" in content
+    assert "CVE-2024-1000" in content
+    assert "CVE-2024-1049" in content
+    # The 51st vulnerability (index 50, id 1050) should not appear in the table
+    assert "CVE-2024-1050" not in content
+
+
+def test_html_empty_vulnerabilities_renders_success_state(tmp_path):
+    rg = ReportGenerator(image_name="test-image", results_dir=str(tmp_path))
+    results = make_results([])
+    output_path = rg.generate_html_report(results)
+    with open(output_path, encoding="utf-8") as f:
+        content = f.read()
+
+    assert "No vulnerabilities found" in content
+    assert "<h2>Detailed Vulnerabilities</h2>" not in content
+
+
+def test_html_renders_image_info_and_config_analysis(tmp_path):
+    rg = ReportGenerator(image_name="test-image", results_dir=str(tmp_path))
+    results = make_results([])
+    results["image_info"] = {
+        "size": 104857600,  # 100 MB
+        "created": "2026-01-01T12:00:00Z",
+        "architecture": "arm64",
+        "os": "alpine",
+    }
+    results["config_analysis"] = {
+        "high_risk": ["Root user configured"],
+        "medium_risk": ["Missing HEALTHCHECK"],
+        "low_risk": ["No label provided"],
+    }
+    output_path = rg.generate_html_report(results)
+    with open(output_path, encoding="utf-8") as f:
+        content = f.read()
+
+    assert "<h2>Image Information</h2>" in content
+    assert "100.0 MB" in content
+    assert "arm64" in content
+    assert "alpine" in content
+    assert "<h2>Configuration Analysis</h2>" in content
+    assert "Root user configured" in content
+    assert "Missing HEALTHCHECK" in content
+    assert "No label provided" in content
+
+
+def test_html_renders_dockerfile_scan_results(tmp_path):
+    rg = ReportGenerator(image_name="test-image", results_dir=str(tmp_path))
+    results = make_results([])
+    results["dockerfile_scan"] = {
+        "skipped": False,
+        "success": False,
+        "output": "DL3006 Always tag the version of an image explicitly",
+    }
+    output_path = rg.generate_html_report(results)
+    with open(output_path, encoding="utf-8") as f:
+        content = f.read()
+
+    assert "<h2>Dockerfile Scan Results</h2>" in content
+    assert "DL3006 Always tag the version of an image explicitly" in content
+
+
 # ---------- MARKDOWN REPORT TESTS ----------
 
 

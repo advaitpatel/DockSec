@@ -246,6 +246,26 @@
         .status-fixed { background: rgba(5, 150, 105, 0.14); color: var(--ok); }
         .status-affected { background: rgba(220, 38, 38, 0.12); color: var(--critical); }
 
+        .fixed-version {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.88em;
+            color: var(--ok);
+            font-weight: 600;
+        }
+
+        .no-fix {
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 0.88em;
+        }
+
+        .table-note {
+            margin-top: 15px;
+            font-style: italic;
+            color: var(--text-muted);
+            font-size: 0.9em;
+        }
+
         .no-issues {
             text-align: center;
             padding: 32px 20px;
@@ -295,38 +315,19 @@
 
         .score-rating {
             display: inline-block;
-            margin-top: 10px;
+            margin-top: 8px;
             padding: 4px 14px;
             border-radius: 999px;
-            font-size: 0.8em;
+            font-size: 0.82em;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.06em;
         }
 
         .rating-excellent { background: rgba(5, 150, 105, 0.14); color: var(--ok); }
-        .rating-good { background: rgba(5, 150, 105, 0.10); color: var(--ok); }
+        .rating-good { background: rgba(37, 99, 235, 0.12); color: var(--low); }
         .rating-fair { background: rgba(217, 119, 6, 0.14); color: var(--medium); }
         .rating-poor { background: rgba(220, 38, 38, 0.12); color: var(--critical); }
-
-        .fixed-version { color: var(--ok); font-weight: 600; }
-        .no-fix { color: var(--text-muted); font-style: italic; }
-
-        .table-note {
-            margin-top: 15px;
-            font-style: italic;
-            color: var(--text-muted);
-        }
-
-        .mono-block {
-            background: var(--surface-alt);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 15px;
-            border-radius: 8px;
-            overflow-x: auto;
-            font-size: 0.9em;
-        }
 
         .config-issues { margin-top: 8px; }
         .config-category { margin-bottom: 18px; }
@@ -353,6 +354,14 @@
 
         .config-list.medium li { border-left-color: var(--medium); }
         .config-list.low li { border-left-color: var(--low); }
+
+        .mono-block {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.9em;
+        }
 
         .footer {
             text-align: center;
@@ -381,7 +390,7 @@
         <div class="header">
             <div class="brand">DockSec Security Report</div>
             <h1>Docker Security Report</h1>
-            <p>{{SCAN_MODE_TITLE}}</p>
+            <p>{{ scan_mode_title }}</p>
         </div>
 
         <div class="content">
@@ -391,54 +400,243 @@
                 <div class="info-grid">
                     <div class="info-item">
                         <div class="info-label">Image Name</div>
-                        <div class="info-value">{{IMAGE_NAME}}</div>
+                        <div class="info-value">{{ image_name }}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Scan Mode</div>
-                        <div class="info-value">{{SCAN_MODE}}</div>
+                        <div class="info-value">{{ scan_mode }}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Dockerfile Path</div>
-                        <div class="info-value">{{DOCKERFILE_PATH}}</div>
+                        <div class="info-value">{{ dockerfile_path }}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Scan Date</div>
-                        <div class="info-value">{{SCAN_DATE}}</div>
+                        <div class="info-value">{{ scan_date }}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Analysis Score</div>
-                        <div class="info-value">{{ANALYSIS_SCORE}}</div>
+                        <div class="info-value">{{ analysis_score if analysis_score is not none else 'N/A' }}</div>
                     </div>
                 </div>
             </div>
 
             <!-- Security Score Section -->
-            {{SECURITY_SCORE_SECTION}}
+            <div class="section">
+                <h2>Security Score</h2>
+                <div class="score-container">
+                    <div class="score-label">Overall Security Score</div>
+                    <div class="score-value">{{ analysis_score if analysis_score is not none else 'N/A' }}/100</div>
+                    {% if analysis_score is not none %}
+                    {% set score = analysis_score | float %}
+                    {% if score >= 90 %}
+                    <div class="score-rating rating-excellent">Excellent</div>
+                    {% elif score >= 70 %}
+                    <div class="score-rating rating-good">Good</div>
+                    {% elif score >= 50 %}
+                    <div class="score-rating rating-fair">Fair</div>
+                    {% else %}
+                    <div class="score-rating rating-poor">Poor</div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
 
             <!-- Image Information Section -->
-            {{IMAGE_INFO_SECTION}}
+            {% if image_info %}
+            <div class="section">
+                <h2>Image Information</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Size</div>
+                        <div class="info-value">{{ (image_info.size / 1048576) | round(2) if image_info.get('size') else 'N/A' }} MB</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Created</div>
+                        <div class="info-value">{{ image_info.get('created', 'N/A')[:19] }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Architecture</div>
+                        <div class="info-value">{{ image_info.get('architecture', 'N/A') }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">OS</div>
+                        <div class="info-value">{{ image_info.get('os', 'N/A') }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Configuration Analysis Section -->
-            {{CONFIG_ANALYSIS_SECTION}}
+            {% if config_analysis and (config_analysis.get('high_risk') or config_analysis.get('medium_risk') or config_analysis.get('low_risk')) %}
+            <div class="section">
+                <h2>Configuration Analysis</h2>
+                <div class="config-issues">
+                    {% if config_analysis.get('high_risk') %}
+                    <div class="config-category">
+                        <h4>High-Risk Issues</h4>
+                        <ul class="config-list high">
+                            {% for issue in config_analysis.high_risk %}
+                            <li>{{ issue }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if config_analysis.get('medium_risk') %}
+                    <div class="config-category">
+                        <h4>Medium-Risk Issues</h4>
+                        <ul class="config-list medium">
+                            {% for issue in config_analysis.medium_risk %}
+                            <li>{{ issue }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if config_analysis.get('low_risk') %}
+                    <div class="config-category">
+                        <h4>Low-Risk Issues</h4>
+                        <ul class="config-list low">
+                            {% for issue in config_analysis.low_risk %}
+                            <li>{{ issue }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
 
             <!-- AI Dockerfile Analysis Section -->
-            {{AI_ANALYSIS_SECTION}}
+            {% if ai_findings and (ai_findings.get('vulnerabilities') or ai_findings.get('security_risks') or ai_findings.get('exposed_credentials') or ai_findings.get('best_practices') or ai_findings.get('remediation')) %}
+            <div class="section">
+                <h2>AI Dockerfile Analysis</h2>
+                <div class="config-issues">
+                    {% for key, heading, list_class in [
+                        ('vulnerabilities', 'Vulnerabilities', 'high'),
+                        ('security_risks', 'Security Risks', 'high'),
+                        ('exposed_credentials', 'Exposed Credentials', 'high'),
+                        ('best_practices', 'Best Practices', 'medium'),
+                        ('remediation', 'Remediation Steps', 'low')
+                    ] %}
+                        {% if ai_findings.get(key) %}
+                        <div class="config-category">
+                            <h4>{{ heading }} ({{ ai_findings[key] | length }})</h4>
+                            <ul class="config-list {{ list_class }}">
+                                {% for item in ai_findings[key] %}
+                                <li>{{ item }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Dockerfile Scan Results Section -->
-            {{DOCKERFILE_SECTION}}
+            {% if dockerfile_scan and not dockerfile_scan.get('skipped', False) %}
+            <div class="section">
+                <h2>Dockerfile Scan Results</h2>
+                {% if dockerfile_scan.get('success') %}
+                <div class="no-issues">No Dockerfile linting issues found</div>
+                {% else %}
+                {% set df_output = dockerfile_scan.get('output', '') %}
+                <pre class="mono-block">{{ df_output[:2000] }}</pre>
+                {% if df_output | length > 2000 %}
+                <p><em>Output truncated for display...</em></p>
+                {% endif %}
+                {% endif %}
+            </div>
+            {% endif %}
 
             <!-- Vulnerability Summary Section -->
             <div class="section">
                 <h2>Vulnerability Summary</h2>
-                {{VULNERABILITY_SUMMARY}}
+                {% if not vulnerabilities %}
+                <div class="no-issues">No vulnerabilities found</div>
+                {% if suppressed_count %}
+                <p><strong>Waived:</strong> {{ suppressed_count }} triaged finding(s) suppressed via ignore file {{ ignore_file }}</p>
+                {% endif %}
+                {% else %}
+                <div class="severity-stats">
+                    <div class="severity-item severity-critical">
+                        <div class="severity-count">{{ severity_counts.get('CRITICAL', 0) }}</div>
+                        <div class="severity-label">Critical</div>
+                    </div>
+                    <div class="severity-item severity-high">
+                        <div class="severity-count">{{ severity_counts.get('HIGH', 0) }}</div>
+                        <div class="severity-label">High</div>
+                    </div>
+                    <div class="severity-item severity-medium">
+                        <div class="severity-count">{{ severity_counts.get('MEDIUM', 0) }}</div>
+                        <div class="severity-label">Medium</div>
+                    </div>
+                    <div class="severity-item severity-low">
+                        <div class="severity-count">{{ severity_counts.get('LOW', 0) }}</div>
+                        <div class="severity-label">Low</div>
+                    </div>
+                </div>
+                <p><strong>Total vulnerabilities:</strong> {{ vulnerabilities | length }}</p>
+                {% set fixable = vulnerabilities | selectattr('FixedVersion', 'defined') | selectattr('FixedVersion') | list | length %}
+                {% if fixable > 0 %}
+                <p><strong>Fix available:</strong> {{ fixable }} of {{ vulnerabilities | length }} findings have a fixed version upstream</p>
+                {% endif %}
+                {% if suppressed_count %}
+                <p><strong>Waived:</strong> {{ suppressed_count }} triaged finding(s) suppressed via ignore file {{ ignore_file }}</p>
+                {% endif %}
+                {% endif %}
             </div>
 
+            {% if vulnerabilities %}
             <!-- Detailed Vulnerabilities Section -->
-            {{DETAILED_VULNERABILITIES_SECTION}}
+            <div class="section">
+                <h2>Detailed Vulnerabilities</h2>
+                <div class="table-scroll">
+                <table class="vulnerability-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Severity</th>
+                            <th>Package</th>
+                            <th>Installed</th>
+                            <th>Fixed In</th>
+                            <th>Title</th>
+                            <th>CVSS</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vuln in vulnerabilities[:50] %}
+                        {% set severity = (vuln.get('Severity') or 'UNKNOWN') | lower %}
+                        {% set severity_class = 'badge-' ~ severity if severity in ['critical', 'high', 'medium', 'low'] else 'badge-low' %}
+                        {% set status = vuln.get('Status') or 'affected' %}
+                        {% set status_class = 'status-fixed' if status == 'fixed' else 'status-affected' %}
+                        {% set title = vuln.get('Title') or 'N/A' %}
+                        {% set cvss_val = vuln.get('CVSS') %}
+                        {% set fixed_version = vuln.get('FixedVersion') %}
+                        <tr>
+                            <td><strong>{{ vuln.get('VulnerabilityID') or 'N/A' }}</strong></td>
+                            <td><span class="severity-badge {{ severity_class }}">{{ vuln.get('Severity') or 'N/A' }}</span></td>
+                            <td>{{ vuln.get('PkgName') or 'N/A' }}</td>
+                            <td>{{ vuln.get('InstalledVersion') or 'N/A' }}</td>
+                            <td>{% if fixed_version %}<span class="fixed-version">{{ fixed_version }}</span>{% else %}<span class="no-fix">none yet</span>{% endif %}</td>
+                            <td>{{ (title[:80] ~ '...') if title | length > 80 else title }}</td>
+                            <td>{{ "%.1f" | format(cvss_val) if cvss_val is number else (cvss_val if cvss_val else 'N/A') }}</td>
+                            <td><span class="status-badge {{ status_class }}">{{ status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                {% if vulnerabilities | length > 50 %}
+                <p class="table-note">Showing 50 of {{ vulnerabilities | length }} vulnerabilities. See CSV/JSON for complete list.</p>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
 
         <div class="footer">
-            <p>Generated by <a href="https://owasp.org/DockSec/">DockSec</a> on {{SCAN_DATE}}</p>
+            <p>Generated by <a href="https://owasp.org/DockSec/">DockSec</a> on {{ scan_date }}</p>
         </div>
     </div>
 </body>

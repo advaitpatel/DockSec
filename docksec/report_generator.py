@@ -21,8 +21,9 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from docksec import output
-from docksec.config import RESULTS_DIR, get_html_template
+from docksec.config import RESULTS_DIR, TEMPLATES_DIR
 from docksec.utils import get_custom_logger
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 # fpdf2 emits a UserWarning at import time when the legacy PyFPDF package shares
 # the same module namespace. It is environmental noise that is not actionable
@@ -701,12 +702,31 @@ class ReportGenerator:
         logger.info(f"Generating HTML report: {output_file}")
 
         try:
-            template_vars = self._prepare_html_template_vars(results)
+            vulnerabilities = results.get("json_data", [])
+            scan_mode = results.get("scan_mode", "full")
+            severity_counts = self._count_by_severity(vulnerabilities)
 
-            # Replace placeholders in template
-            html_content = get_html_template()
-            for key, value in template_vars.items():
-                html_content = html_content.replace(f"{{{{{key}}}}}", str(value))
+            env = Environment(
+                loader=FileSystemLoader(TEMPLATES_DIR),
+                autoescape=select_autoescape(["html", "htm", "xml", "j2"]),
+            )
+            template = env.get_template("report.html.j2")
+            html_content = template.render(
+                image_name=self.image_name,
+                scan_mode=scan_mode.replace("_", " ").title(),
+                scan_mode_title=f"{scan_mode.replace('_', ' ').title()} Scan",
+                dockerfile_path=results.get("dockerfile_path", "N/A"),
+                scan_date=results.get("timestamp", ""),
+                analysis_score=self.analysis_score,
+                image_info=results.get("image_info"),
+                config_analysis=results.get("config_analysis"),
+                ai_findings=results.get("ai_findings"),
+                dockerfile_scan=results.get("dockerfile_scan", {"skipped": True}),
+                vulnerabilities=vulnerabilities,
+                severity_counts=severity_counts,
+                suppressed_count=results.get("suppressed_count"),
+                ignore_file=results.get("ignore_file"),
+            )
 
             # Save the HTML file
             with open(output_file, "w", encoding="utf-8") as f:
@@ -844,355 +864,6 @@ class ReportGenerator:
             output.error(f"Failed to save Markdown report: {e}")
             return ""
 
-    def _prepare_html_template_vars(self, results: Dict) -> Dict[str, str]:
-        """
-        Prepare variables for HTML template replacement.
-
-        Args:
-            results: Scan results dictionary
-
-        Returns:
-            Dictionary of template variables
-        """
-        vulnerabilities = results.get("json_data", [])
-        scan_mode = results.get("scan_mode", "full")
-
-        template_vars = {
-            "IMAGE_NAME": self.image_name,
-            "SCAN_MODE": scan_mode.replace("_", " ").title(),
-            "SCAN_MODE_TITLE": f"{scan_mode.replace('_', ' ').title()} Scan",
-            "DOCKERFILE_PATH": results.get("dockerfile_path", "N/A"),
-            "SCAN_DATE": results.get("timestamp", ""),
-            "ANALYSIS_SCORE": (
-                str(self.analysis_score) if self.analysis_score else "N/A"
-            ),
-        }
-
-        # Security Score Section (rating bands match the terminal summary in
-        # docksec.output._score_band)
-        score_rating_html = ""
-        if self.analysis_score is not None:
-            score = float(self.analysis_score)
-            if score >= 90:
-                rating, rating_class = "Excellent", "rating-excellent"
-            elif score >= 70:
-                rating, rating_class = "Good", "rating-good"
-            elif score >= 50:
-                rating, rating_class = "Fair", "rating-fair"
-            else:
-                rating, rating_class = "Poor", "rating-poor"
-            score_rating_html = f'<div class="score-rating {rating_class}">{rating}</div>'
-
-        template_vars["SECURITY_SCORE_SECTION"] = f"""
-        <div class="section">
-            <h2>Security Score</h2>
-            <div class="score-container">
-                <div class="score-label">Overall Security Score</div>
-                <div class="score-value">{self.analysis_score if self.analysis_score is not None else 'N/A'}/100</div>
-                {score_rating_html}
-            </div>
-        </div>
-        """
-
-        # Image Information Section
-        if "image_info" in results:
-            image_info = results["image_info"]
-            size_mb = (
-                round(image_info.get("size", 0) / (1024 * 1024), 2)
-                if image_info.get("size")
-                else "N/A"
-            )
-
-            template_vars["IMAGE_INFO_SECTION"] = f"""
-            <div class="section">
-                <h2>Image Information</h2>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Size</div>
-                        <div class="info-value">{size_mb} MB</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Created</div>
-                        <div class="info-value">{image_info.get('created', 'N/A')[:19]}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Architecture</div>
-                        <div class="info-value">{image_info.get('architecture', 'N/A')}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">OS</div>
-                        <div class="info-value">{image_info.get('os', 'N/A')}</div>
-                    </div>
-                </div>
-            </div>
-            """
-        else:
-            template_vars["IMAGE_INFO_SECTION"] = ""
-
-        # Configuration Analysis Section
-        if "config_analysis" in results:
-            config_analysis = results["config_analysis"]
-            config_html = (
-                '<div class="section"><h2>Configuration Analysis</h2><div class="config-issues">'
-            )
-
-            # High risk issues
-            if config_analysis.get("high_risk"):
-                config_html += '<div class="config-category"><h4>High-Risk Issues</h4><ul class="config-list high">'
-                for issue in config_analysis["high_risk"]:
-                    config_html += f"<li>{self._escape_html(issue)}</li>"
-                config_html += "</ul></div>"
-
-            # Medium risk issues
-            if config_analysis.get("medium_risk"):
-                config_html += '<div class="config-category"><h4>Medium-Risk Issues</h4><ul class="config-list medium">'
-                for issue in config_analysis["medium_risk"]:
-                    config_html += f"<li>{self._escape_html(issue)}</li>"
-                config_html += "</ul></div>"
-
-            # Low risk issues
-            if config_analysis.get("low_risk"):
-                config_html += '<div class="config-category"><h4>Low-Risk Issues</h4><ul class="config-list low">'
-                for issue in config_analysis["low_risk"]:
-                    config_html += f"<li>{self._escape_html(issue)}</li>"
-                config_html += "</ul></div>"
-
-            config_html += "</div></div>"
-            template_vars["CONFIG_ANALYSIS_SECTION"] = config_html
-        else:
-            template_vars["CONFIG_ANALYSIS_SECTION"] = ""
-
-        # AI Dockerfile Analysis Section. Renders the full LLM findings (the
-        # terminal shows only a truncated preview), so this is where the user
-        # reads the complete list. Empty when no AI analysis ran.
-        template_vars["AI_ANALYSIS_SECTION"] = self._build_ai_analysis_html(
-            results.get("ai_findings")
-        )
-
-        # Dockerfile Section
-        if not results["dockerfile_scan"].get("skipped", False):
-            if results["dockerfile_scan"]["success"]:
-                dockerfile_content = (
-                    '<div class="no-issues">No Dockerfile linting issues found</div>'
-                )
-            else:
-                dockerfile_output = results["dockerfile_scan"].get("output", "")
-                dockerfile_content = f'<pre class="mono-block">{self._escape_html(dockerfile_output[:2000])}</pre>'
-                if len(dockerfile_output) > 2000:
-                    dockerfile_content += (
-                        "<p><em>Output truncated for display...</em></p>"
-                    )
-
-            template_vars["DOCKERFILE_SECTION"] = f"""
-            <div class="section">
-                <h2>Dockerfile Scan Results</h2>
-                {dockerfile_content}
-            </div>
-            """
-        else:
-            template_vars["DOCKERFILE_SECTION"] = ""
-
-        # Vulnerability Summary
-        if not vulnerabilities:
-            no_issues_html = '<div class="no-issues">No vulnerabilities found</div>'
-            suppressed = results.get("suppressed_count")
-            if suppressed:
-                ignore_file = self._escape_html(str(results.get("ignore_file", "")))
-                no_issues_html += (
-                    f"<p><strong>Waived:</strong> {suppressed} triaged finding(s) "
-                    f"suppressed via ignore file {ignore_file}</p>"
-                )
-            template_vars["VULNERABILITY_SUMMARY"] = no_issues_html
-            template_vars["DETAILED_VULNERABILITIES_SECTION"] = ""
-        else:
-            severity_counts = self._count_by_severity(vulnerabilities)
-
-            severity_html = f"""
-            <div class="severity-stats">
-                <div class="severity-item severity-critical">
-                    <div class="severity-count">{severity_counts.get('CRITICAL', 0)}</div>
-                    <div class="severity-label">Critical</div>
-                </div>
-                <div class="severity-item severity-high">
-                    <div class="severity-count">{severity_counts.get('HIGH', 0)}</div>
-                    <div class="severity-label">High</div>
-                </div>
-                <div class="severity-item severity-medium">
-                    <div class="severity-count">{severity_counts.get('MEDIUM', 0)}</div>
-                    <div class="severity-label">Medium</div>
-                </div>
-                <div class="severity-item severity-low">
-                    <div class="severity-count">{severity_counts.get('LOW', 0)}</div>
-                    <div class="severity-label">Low</div>
-                </div>
-            </div>
-            <p><strong>Total vulnerabilities:</strong> {len(vulnerabilities)}</p>
-            """
-
-            fixable = sum(1 for v in vulnerabilities if v.get("FixedVersion"))
-            if fixable:
-                severity_html += (
-                    f"<p><strong>Fix available:</strong> {fixable} of "
-                    f"{len(vulnerabilities)} findings have a fixed version upstream</p>"
-                )
-            suppressed = results.get("suppressed_count")
-            if suppressed:
-                ignore_file = self._escape_html(str(results.get("ignore_file", "")))
-                severity_html += (
-                    f"<p><strong>Waived:</strong> {suppressed} triaged finding(s) "
-                    f"suppressed via ignore file {ignore_file}</p>"
-                )
-
-            template_vars["VULNERABILITY_SUMMARY"] = severity_html
-
-            # Detailed vulnerabilities table
-            table_html = """
-            <div class="section">
-                <h2>Detailed Vulnerabilities</h2>
-                <div class="table-scroll">
-                <table class="vulnerability-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Severity</th>
-                            <th>Package</th>
-                            <th>Installed</th>
-                            <th>Fixed In</th>
-                            <th>Title</th>
-                            <th>CVSS</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            """
-
-            for vuln in vulnerabilities[:50]:
-                severity = vuln.get("Severity", "UNKNOWN").lower()
-                severity_class = (
-                    f"badge-{severity}"
-                    if severity in ["critical", "high", "medium", "low"]
-                    else "badge-low"
-                )
-
-                status = vuln.get("Status", "affected")
-                status_class = (
-                    "status-fixed" if status == "fixed" else "status-affected"
-                )
-
-                cvss_score = vuln.get("CVSS", "N/A")
-                if cvss_score and cvss_score != "N/A":
-                    cvss_score = (
-                        f"{cvss_score:.1f}"
-                        if isinstance(cvss_score, (int, float))
-                        else str(cvss_score)
-                    )
-
-                vuln_id = vuln.get('VulnerabilityID') or 'N/A'
-                pkg_name = vuln.get('PkgName') or 'N/A'
-                installed_version = vuln.get('InstalledVersion') or 'N/A'
-                fixed_version = vuln.get('FixedVersion') or ''
-                fixed_cell = (
-                    f'<span class="fixed-version">{self._escape_html(fixed_version)}</span>'
-                    if fixed_version else '<span class="no-fix">none yet</span>'
-                )
-                title = vuln.get('Title') or 'N/A'
-                display_title = (title[:80] + '...') if len(title) > 80 else title
-
-                table_html += f"""
-                        <tr>
-                            <td><strong>{self._escape_html(vuln_id)}</strong></td>
-                            <td><span class="severity-badge {severity_class}">{vuln.get('Severity', 'N/A')}</span></td>
-                            <td>{self._escape_html(pkg_name)}</td>
-                            <td>{self._escape_html(installed_version)}</td>
-                            <td>{fixed_cell}</td>
-                            <td>{self._escape_html(display_title)}</td>
-                            <td>{cvss_score}</td>
-                            <td><span class="status-badge {status_class}">{status}</span></td>
-                        </tr>
-                """
-
-            table_html += """
-                    </tbody>
-                </table>
-                </div>
-            """
-
-            if len(vulnerabilities) > 50:
-                table_html += f'<p class="table-note">Showing 50 of {len(vulnerabilities)} vulnerabilities. See CSV/JSON for complete list.</p>'
-
-            table_html += "</div>"
-            template_vars["DETAILED_VULNERABILITIES_SECTION"] = table_html
-
-        return template_vars
-
-    def _build_ai_analysis_html(self, ai_findings: Optional[Dict]) -> str:
-        """
-        Build the AI Dockerfile Analysis HTML section from LLM findings.
-
-        Renders every finding in full (unlike the truncated terminal preview)
-        so the report is the authoritative place to read the complete list.
-
-        Args:
-            ai_findings: The "ai_findings" dict produced by analyze_security,
-                or None when no AI analysis ran.
-
-        Returns:
-            HTML string for the section, or "" when there are no findings.
-        """
-        if not ai_findings:
-            return ""
-
-        # (key, heading, config-list severity class) for each category.
-        categories = [
-            ("vulnerabilities", "Vulnerabilities", "high"),
-            ("security_risks", "Security Risks", "high"),
-            ("exposed_credentials", "Exposed Credentials", "high"),
-            ("best_practices", "Best Practices", "medium"),
-            ("remediation", "Remediation Steps", "low"),
-        ]
-
-        blocks = []
-        for key, heading, list_class in categories:
-            items = ai_findings.get(key) or []
-            if not items:
-                continue
-            list_items = "".join(
-                f"<li>{self._escape_html(str(item))}</li>" for item in items
-            )
-            blocks.append(
-                f'<div class="config-category">'
-                f"<h4>{self._escape_html(heading)} ({len(items)})</h4>"
-                f'<ul class="config-list {list_class}">{list_items}</ul>'
-                f"</div>"
-            )
-
-        if not blocks:
-            return ""
-
-        return (
-            '<div class="section"><h2>AI Dockerfile Analysis</h2>'
-            '<div class="config-issues">' + "".join(blocks) + "</div></div>"
-        )
-
-    def _escape_html(self, text: str) -> str:
-        """
-        Escape HTML special characters in text.
-
-        Uses Python's built-in html.escape() for complete HTML5
-        entity handling, replacing the previous hand-rolled table.
-
-        Args:
-            text: Text to escape
-
-        Returns:
-            HTML-escaped text
-        """
-        import html
-
-        if not text:
-            return ""
-        return html.escape(str(text), quote=True)
-
     def _escape_markdown(self, text) -> str:
         """
         Make text safe for Markdown tables.
@@ -1214,7 +885,6 @@ class ReportGenerator:
             .replace("|", "\\|")
             .replace("\n", " ")
         )
-
     def _count_by_severity(self, vulnerabilities: List[Dict]) -> Dict[str, int]:
         """
         Count vulnerabilities by severity level.
